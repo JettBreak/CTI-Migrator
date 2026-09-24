@@ -47,6 +47,12 @@ final class InMemoryCoreAccountGateway implements CoreAccountGateway
         $this->accounts[$seq] = ['no' => $accountNo, 'customer' => 999999, 'type' => '10', 'branch' => 7];
     }
 
+    /** Simulates that record being removed again in core. */
+    public function removeAccount(int $seq): void
+    {
+        unset($this->accounts[$seq]);
+    }
+
     public function transactional(callable $work): mixed
     {
         $snapshot = [$this->accounts, $this->links, $this->renames];

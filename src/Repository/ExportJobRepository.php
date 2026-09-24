@@ -44,6 +44,12 @@ class ExportJobRepository extends ServiceEntityRepository
         return $this->count(['state' => $state]);
     }
 
+    /** The export the worker is generating right now, if any. */
+    public function findRunning(): ?ExportJob
+    {
+        return $this->findOneBy(['state' => ExportState::Running], ['createdAt' => 'ASC', 'id' => 'ASC']);
+    }
+
     public function hasUnfinished(): bool
     {
         return $this->count(['state' => [ExportState::Queued, ExportState::Running]]) > 0;

@@ -23,8 +23,8 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .upload-form input[type=file]{font:inherit}
 .form-errors{color:var(--red);margin:8px 0 0;padding:0;list-style:none}
 .row-errors{margin:0;padding-left:16px;color:var(--red)}
-.review-actions{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:16px}
-.review-actions textarea{font:inherit;border:1px solid #ccd5e3;border-radius:7px;padding:8px 10px;min-width:280px}
+.review-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.review-actions form{display:flex;align-items:center;gap:10px;margin:0}.review-actions textarea{font:inherit;border:1px solid #ccd5e3;border-radius:7px;padding:10px;min-width:280px;height:42px;min-height:42px;resize:vertical;line-height:20px}.review-actions .button{min-height:42px}
 .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 24px;margin:0}
 .facts dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
 .facts dd{margin:3px 0 0;font-weight:600}
@@ -54,3 +54,48 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 /* Application logo */
 .brand-logo{width:36px;height:36px;flex:none}
 .brand-logo.large{width:56px;height:56px}
+/* Confirmation modal (assets/controllers/confirm_controller.js) */
+.confirm-modal{border:0;border-radius:12px;padding:0;width:min(460px,calc(100vw - 32px));color:var(--ink);background:#fff;box-shadow:0 24px 60px #10264e40;font:14px 'DM Sans',sans-serif}
+.confirm-modal[open]{animation:confirm-modal-in .16s ease-out}
+.confirm-modal::backdrop{background:#10264e73;backdrop-filter:blur(2px)}
+.confirm-modal-body{display:flex;gap:15px;padding:24px 24px 18px}
+.confirm-modal-body h2{font-size:17px;margin:3px 0 7px}
+.confirm-modal-body p{margin:0;color:var(--muted);line-height:1.55}
+.confirm-modal-icon{flex:0 0 38px;height:38px;border-radius:50%;display:grid;place-items:center;font:700 18px Manrope,sans-serif;background:#eaf0ff;color:var(--blue)}
+.confirm-modal.danger .confirm-modal-icon{background:var(--red-bg);color:var(--red)}
+.confirm-modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;background:#fafbfd;border-top:1px solid var(--line)}
+.confirm-modal-actions [data-role="confirm"]{color:#fff;background:var(--blue);box-shadow:0 5px 14px #3068db32}
+.confirm-modal.danger .confirm-modal-actions [data-role="confirm"]{background:var(--red);box-shadow:0 5px 14px #d74d5c33}
+.confirm-modal-actions .button:disabled{opacity:.6;cursor:default}
+@keyframes confirm-modal-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@media(max-width:520px){.confirm-modal-actions{flex-direction:column-reverse}.confirm-modal-actions .button{width:100%}}
+/* Loading state while a directory status filter is applied (assets/controllers/autosubmit_controller.js) */
+.directory-panel.is-loading .filter select{opacity:.6;pointer-events:none}
+.directory-panel{position:relative}
+.directory-panel .table-wrap,.directory-panel .pagination{transition:opacity .15s}
+.directory-panel.is-loading .table-wrap,.directory-panel.is-loading .pagination{opacity:.25;pointer-events:none}
+/* Running dinosaur (templates/_dino_loading.html.twig): hidden until an ancestor is .is-loading */
+.dino-loading{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-40%);z-index:3;flex-direction:column;align-items:center;gap:12px;padding:22px 28px 18px;background:#fffffff2;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px #10264e1f;color:#535353}
+.is-loading>.dino-loading,.dino-loading.is-active{display:flex}
+.dino-stage{position:relative;width:240px;height:72px;overflow:hidden}
+.dino{position:absolute;left:26px;bottom:8px;width:48px;height:42px;fill:currentColor;animation:dino-jump 2.2s linear infinite}
+.dino-legs-a{animation:dino-step .26s steps(1) infinite}
+.dino-legs-b{animation:dino-step .26s steps(1) infinite reverse}
+.dino-cactus{position:absolute;left:100%;bottom:8px;width:14px;height:24px;fill:currentColor;animation:dino-cactus 2.2s linear infinite}
+.dino-ground{position:absolute;left:0;right:0;bottom:8px;height:1px;background:currentColor}
+.dino-ground:after{content:'';position:absolute;left:0;right:0;top:4px;height:2px;background:repeating-linear-gradient(90deg,currentColor 0 3px,transparent 3px 17px,currentColor 17px 19px,transparent 19px 41px);opacity:.55;animation:dino-ground .55s linear infinite}
+.dino-label{font:700 12px Manrope,sans-serif;letter-spacing:.6px;color:var(--muted)}
+@keyframes dino-step{0%{opacity:1}50%{opacity:0}}
+@keyframes dino-ground{to{background-position:-41px 0}}
+/* The cactus crosses the stage (240px + its width) in 2.2s; the dino (x 26–74) jumps while it passes. */
+@keyframes dino-cactus{from{transform:translateX(0)}to{transform:translateX(-260px)}}
+@keyframes dino-jump{0%,60%{transform:translateY(0)}66%,80%{transform:translateY(-32px)}84%{transform:translateY(-26px)}92%,100%{transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.dino,.dino-legs-a,.dino-legs-b,.dino-cactus,.dino-ground:after{animation:none}.dino-legs-b{opacity:0}.dino-cactus{display:none}}
+/* Compact variant, always running: e.g. an export being prepared in the Exports table */
+.dino-loading.compact{position:static;transform:none;flex-direction:row;gap:8px;padding:0;background:none;border:0;box-shadow:none;z-index:auto}
+.dino-loading.compact .dino-stage{zoom:.5}
+.dino-loading.compact .dino-label{font-size:11px;letter-spacing:.3px;white-space:nowrap}
+.download-pending{background:#fff;border:0;box-shadow:none;color:#535353;cursor:progress;padding:5px 8px;gap:0}
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Export buttons are disabled while the worker generates another export (templates/export/_button.html.twig) */
+.inline-form button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}

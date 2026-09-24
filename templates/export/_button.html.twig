@@ -1,6 +1,10 @@
-{# POST form for the card-account source export. Params: status (optional), label, class. #}
-<form method="post" action="{{ path('app_export_request') }}" class="inline-form" data-turbo="false">
+{# POST form for the card-account source export. Params: status (optional), label, class.
+   Disabled while the worker is generating another export (the title explains why; a disabled
+   button shows no tooltip itself, so it sits on the form). #}
+{% set running = running_export() %}
+<form method="post" action="{{ path('app_export_request') }}" class="inline-form" data-turbo="false"
+      {%- if running %} title="Export #{{ running.id }} is running. You can start another export when it has finished."{% endif %}>
     <input type="hidden" name="_token" value="{{ csrf_token('card-export') }}">
     {% if status|default(null) %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
-    <button type="submit" class="{{ class|default('button outline') }}">{{ label }}</button>
+    <button type="submit" class="{{ class|default('button outline') }}"{% if running %} disabled aria-disabled="true"{% endif %}>{{ label }}</button>
 </form>

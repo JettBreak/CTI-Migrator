@@ -63,6 +63,19 @@ final class MigrationControllerTest extends AppTestCase
         self::assertSelectorTextContains('tbody', '001-004568921');
     }
 
+    public function testStatusFiltersAndPaginationShowALoadingStateWhileTheListReloads(): void
+    {
+        foreach (['/cards', '/accounts'] as $page) {
+            $this->client->request('GET', $page);
+            // The panel shows the loading state for the filter form's submit and for pagination clicks.
+            self::assertSelectorExists('.directory-panel[data-controller="loading"][data-action="submit->loading#start click->loading#follow"]', $page);
+            self::assertSelectorExists('.directory-panel form.filter[data-controller="autosubmit"] select[data-action="change->autosubmit#submit"]', $page);
+            self::assertSelectorExists('.directory-panel .pagination', $page);
+            self::assertSelectorExists('.directory-panel > .dino-loading[role="status"] svg.dino', $page);
+            self::assertSelectorTextContains('.directory-panel > .dino-loading .dino-label', '/cards' === $page ? 'Loading cards' : 'Loading accounts', $page);
+        }
+    }
+
     public function testNonGetRequestsAreRejected(): void
     {
         $this->client->request('POST', '/cards');

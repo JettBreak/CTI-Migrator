@@ -17,7 +17,7 @@ use App\Entity\MigrationRow;
  */
 final class MappingValidator
 {
-    private const KEY_MAX_LENGTH = 30;   // prmaster.prkey
+    public const KEY_MAX_LENGTH = 30;    // prmaster.prkey
     private const XML_MAX_LENGTH = 250;  // prlinkxx.xml1
 
     public function __construct(private readonly CoreAccountGateway $core)
@@ -25,11 +25,17 @@ final class MappingValidator
     }
 
     /**
-     * @param iterable<MigrationRow> $rows
+     * Rows can be validated a chunk at a time: pass the first mapping in the whole file for each of the
+     * chunk's accounts (MigrationRowRepository::firstMappings()) so the one-account-one-number rules
+     * still see every row. Rows must be given in file order.
+     *
+     * @param iterable<MigrationRow>            $rows
+     * @param array<string, array{string, int}> $firstForCurrent current => [new, line] of its first mapping in the file
+     * @param array<string, array{string, int}> $firstForNew     new => [current, line] of its first mapping in the file
      *
      * @return list<RenamePlan> one plan per account to rename (only meaningful when every row is valid)
      */
-    public function validate(iterable $rows, bool $lockForUpdate = false): array
+    public function validate(iterable $rows, bool $lockForUpdate = false, array $firstForCurrent = [], array $firstForNew = []): array
     {
         $rows = [...$rows];
         $currents = array_map(static fn (MigrationRow $r) => $r->getCurrentAccount(), $rows);
@@ -40,8 +46,8 @@ final class MappingValidator
         $usedKeys = array_flip($this->core->findUsedKeys(array_values(array_filter($news)), $lockForUpdate));
         $cards = $this->core->findCards(array_values($cardSeqs));
 
-        $newForCurrent = [];  // current => [new, line]
-        $currentForNew = [];  // new => [current, line]
+        $newForCurrent = $firstForCurrent;  // current => [new, line]
+        $currentForNew = $firstForNew;      // new => [current, line]
         $plans = [];
         foreach ($rows as $row) {
             $current = $row->getCurrentAccount();

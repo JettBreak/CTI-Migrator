@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\ExportJob;
+use App\Enum\ExportState;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -80,6 +81,12 @@ final class CardExport
     public function pathFor(ExportJob $job): string
     {
         return sprintf('%s/cards-%d.csv', $this->directory, $job->getId());
+    }
+
+    /** Completed and its file is still on disk (it can be removed by the retention cleanup or by hand). */
+    public function isAvailable(ExportJob $job): bool
+    {
+        return ExportState::Completed === $job->getState() && is_file($this->pathFor($job));
     }
 
     /**

@@ -16,6 +16,7 @@ framework:
 
         routing:
             App\Message\GenerateCardExport: async
+            App\Message\ProcessBatch: async
 
 when@test:
     framework:

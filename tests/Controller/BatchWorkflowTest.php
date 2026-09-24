@@ -5,9 +5,12 @@ namespace App\Tests\Controller;
 use App\Core\CoreAccountGateway;
 use App\Core\InMemoryCoreAccountGateway;
 use App\Entity\MigrationBatch;
+use App\Entity\MigrationRow;
 use App\Enum\BatchStatus;
+use App\Repository\MigrationRowRepository;
 use App\Tests\AppTestCase;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class BatchWorkflowTest extends AppTestCase
 {
@@ -37,9 +40,9 @@ final class BatchWorkflowTest extends AppTestCase
         $batch = $this->upload(self::VALID_CSV);
         self::assertSame(BatchStatus::Validated, $batch->getStatus());
         self::assertSame(3, $batch->accountCount());
-        self::assertSame(2, $batch->getRows()->first()->getLinkedCards());
+        self::assertSame(2, $this->rows($batch)[0]->getLinkedCards());
         self::assertSelectorTextContains('tbody', '5412 86•• •••• 8821');
-        self::assertSelectorTextContains('tbody', 'Ready to rename');
+        self::assertSelectorTextContains('tbody', 'Ready to replace');
 
         $this->post($batch, 'submit');
         self::assertSame(BatchStatus::AwaitingApproval, $this->reload($batch)->getStatus());
@@ -51,17 +54,18 @@ final class BatchWorkflowTest extends AppTestCase
         $this->loginAs('approver');
         $this->post($batch, 'approve');
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.flash.success', 'accounts renamed in core');
+        self::assertSelectorTextContains('.flash.success', 'accounts replaced in core');
 
         $batch = $this->reload($batch);
         self::assertSame(BatchStatus::Completed, $batch->getStatus());
         self::assertSame('approver', $batch->getReviewedBy());
 
+        // Applied in account-number order, two accounts per chunk in the test environment.
         $core = $this->core();
         self::assertSame([
             ['from' => '001-004568921', 'to' => '009-003821447', 'user' => 'approver'],
-            ['from' => '001-009713450', 'to' => '009-003821448', 'user' => 'approver'],
             ['from' => '001-005688102', 'to' => '009-003821449', 'user' => 'approver'],
+            ['from' => '001-009713450', 'to' => '009-003821448', 'user' => 'approver'],
         ], $core->renames, 'One rename per account, even though 001-004568921 is on two rows.');
         self::assertSame('009-003821447', $core->accounts[2001]['no']);
 
@@ -73,7 +77,7 @@ final class BatchWorkflowTest extends AppTestCase
         }
 
         self::assertSelectorTextContains('.audit', 'Uploaded by officer');
-        self::assertSelectorTextContains('.audit', '3 account(s) renamed in core, 4 card link(s) updated');
+        self::assertSelectorTextContains('.audit', '3 account(s) replaced in core, 4 card link(s) updated');
 
         $this->client->request('GET', sprintf('/migration/batches/%d/report.csv', $batch->getId()));
         self::assertResponseIsSuccessful();
@@ -104,7 +108,7 @@ final class BatchWorkflowTest extends AppTestCase
             CSV);
 
         self::assertSame(BatchStatus::Invalid, $batch->getStatus());
-        $errors = array_map(static fn ($row) => implode(' ', $row->getErrors()), $batch->getRows()->toArray());
+        $errors = array_map(static fn ($row) => implode(' ', $row->getErrors()), $this->rows($batch));
         self::assertStringContainsString('new_account already exists in core', $errors[0]);
         self::assertStringContainsString('current_account not found in core', $errors[1]);
         self::assertStringContainsString('The card in card_ref is not linked to current_account', $errors[2]);
@@ -132,6 +136,7 @@ final class BatchWorkflowTest extends AppTestCase
         $this->post($batch, 'submit');
 
         // Someone creates an account with one of the new numbers while the batch waits for approval.
+        // 001-005688102 → 009-003821449 is in the first chunk, so nothing has been renamed when it fails.
         $this->core()->addAccount(2999, '009-003821449');
 
         $this->loginAs('approver');
@@ -141,9 +146,102 @@ final class BatchWorkflowTest extends AppTestCase
 
         $batch = $this->reload($batch);
         self::assertSame(BatchStatus::Failed, $batch->getStatus());
-        self::assertSame([], $this->core()->renames, 'All-or-nothing: the other accounts must not be renamed either.');
+        self::assertSame([], $this->core()->renames, 'The failing chunk rolls back: its other account must not be renamed either.');
         self::assertSame('001-004568921', $this->core()->accounts[2001]['no']);
-        self::assertNull($batch->getRows()->first()->getAppliedAt());
+        self::assertNull($this->rows($batch)[0]->getAppliedAt());
+    }
+
+    public function testAFailingLaterChunkHaltsTheBatchAndAnApproverCanResumeIt(): void
+    {
+        $this->loginAs('officer');
+        $batch = $this->upload(self::VALID_CSV);
+        $this->post($batch, 'submit');
+
+        // 001-009713450 → 009-003821448 is in the second chunk: the first chunk commits before it fails.
+        $this->core()->addAccount(2999, '009-003821448');
+
+        $this->loginAs('approver');
+        $this->post($batch, 'approve');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.error', 'Stopped after replacing 2 of 3 account(s)');
+
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::Halted, $batch->getStatus());
+        self::assertSame(2, $batch->getAppliedAccountCount());
+        self::assertSame(1, $batch->invalidRowCount());
+        self::assertSame(['001-004568921', '001-005688102'], array_column($this->core()->renames, 'from'));
+        self::assertNotNull($this->rows($batch)[0]->getAppliedAt());
+        self::assertNull($this->rows($batch)[2]->getAppliedAt());
+
+        $this->client->request('GET', sprintf('/migration/batches/%d/rows.csv?filter=pending', $batch->getId()));
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            "card_ref,current_account,new_account,line,errors\n1002,001-009713450,009-003821448,4,\"new_account already exists in core.\"\n",
+            $this->client->getInternalResponse()->getContent(),
+        );
+
+        // The uploader cannot resume it.
+        $this->loginAs('officer');
+        $this->post($batch, 'resume', expectRedirect: false);
+        self::assertResponseStatusCodeSame(403);
+
+        // Once the conflict is gone in core, an approver finishes the rest.
+        $this->core()->removeAccount(2999);
+        $this->loginAs('approver');
+        $this->post($batch, 'resume');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.success', 'remaining accounts were replaced');
+
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::Completed, $batch->getStatus());
+        self::assertSame(0, $batch->invalidRowCount());
+        self::assertSame(['001-004568921', '001-005688102', '001-009713450'], array_column($this->core()->renames, 'from'));
+        self::assertSelectorTextContains('.audit', 'Halted by approver');
+        self::assertSelectorTextContains('.audit', 'Resumed by approver');
+        self::assertSelectorTextContains('.audit', '3 account(s) replaced in core, 4 card link(s) updated');
+    }
+
+    public function testSmallFilesAreValidatedDuringTheRequest(): void
+    {
+        $this->loginAs('officer');
+        $batch = $this->upload("current_account,new_account\n001-004568921,009-003821447\n001-009713450,009-003821448\n");
+        self::assertSame(BatchStatus::Validated, $batch->getStatus());
+        self::assertSelectorNotExists('.flash.success'); // no "validated in the background" notice
+        self::assertSame(2, $batch->getRowCount());
+    }
+
+    public function testFilesOfMoreThanFiveThousandRowsAreValidatedAcrossChunks(): void
+    {
+        $lines = ['current_account,new_account', '001-004568921,009-200000000'];
+        for ($i = 1; $i <= 6000; ++$i) {
+            $lines[] = sprintf('001-7%08d,009-7%08d', $i, $i); // not in core
+        }
+        $lines[] = '001-004568921,009-200000001'; // several chunks after line 2, and conflicts with it
+
+        $this->loginAs('officer');
+        $batch = $this->upload(implode("\n", $lines)."\n");
+        self::assertSelectorTextContains('.flash.success', '6,002 rows are being validated in the background');
+
+        self::assertSame(BatchStatus::Invalid, $batch->getStatus());
+        self::assertSame(6002, $batch->getRowCount());
+        self::assertSame(6001, $batch->invalidRowCount());
+        self::assertSame(6001, $batch->accountCount());
+        $rows = $this->rows($batch);
+        self::assertTrue($rows[0]->isValid());
+        self::assertSame(['current_account is mapped to 009-200000000 on line 2; one account can only get one new number.'], $rows[6001]->getErrors());
+
+        // The page shows one page of rows at a time.
+        $this->client->request('GET', sprintf('/migration/batches/%d', $batch->getId()));
+        self::assertSelectorTextContains('.pagination', 'Showing 1–100 of 6,002 rows');
+        self::assertCount(100, $this->client->getCrawler()->filter('tbody tr'));
+
+        $this->client->request('GET', sprintf('/migration/batches/%d?invalid=1&page=61', $batch->getId()));
+        self::assertSelectorTextContains('.pagination', 'Showing 6,001–6,001 of 6,001 rows');
+        self::assertSelectorTextContains('tbody', 'current_account is mapped to 009-200000000 on line 2');
+
+        $this->client->request('GET', sprintf('/migration/batches/%d/rows.csv', $batch->getId()));
+        self::assertResponseIsSuccessful();
+        self::assertSame(6002, substr_count($this->client->getInternalResponse()->getContent(), "\n"), 'header + 6,001 rows to correct');
     }
 
     public function testApproverCanRejectWithANote(): void
@@ -161,13 +259,30 @@ final class BatchWorkflowTest extends AppTestCase
         self::assertSame([], $this->core()->renames);
     }
 
-    public function testApproverCannotApproveABatchTheyUploaded(): void
+    public function testApproversCannotUpload(): void
     {
+        // Officers get the upload section.
+        $this->loginAs('officer');
+        $this->client->request('GET', '/migration');
+        self::assertSelectorExists('form[name="mapping_upload"]');
+        self::assertSelectorTextContains('body', 'Upload a replacement mapping file');
+        $token = $this->client->getCrawler()->filter('input[name="mapping_upload[_token]"]')->attr('value');
+
+        // Approvers see the batch list, but no upload section.
         $this->loginAs('approver');
-        $batch = $this->upload(self::VALID_CSV);
-        $this->post($batch, 'submit');
-        $this->post($batch, 'approve', expectRedirect: false);
+        $this->client->request('GET', '/migration');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('form[name="mapping_upload"]');
+        self::assertSelectorTextNotContains('body', 'Upload a replacement mapping file');
+        self::assertSelectorExists('table');
+
+        // Posting an upload anyway is refused, and no batch is created.
+        $path = sys_get_temp_dir().'/ucpb-'.bin2hex(random_bytes(4)).'.csv';
+        file_put_contents($path, self::VALID_CSV);
+        $this->tempFiles[] = $path;
+        $this->client->request('POST', '/migration', ['mapping_upload' => ['_token' => $token]], ['mapping_upload' => ['file' => new UploadedFile($path, 'mapping.csv', 'text/csv', null, true)]]);
         self::assertResponseStatusCodeSame(403);
+        self::assertSame(0, static::getContainer()->get(EntityManagerInterface::class)->getRepository(MigrationBatch::class)->count([]));
     }
 
     public function testActionsRequireACsrfToken(): void
@@ -243,6 +358,12 @@ final class BatchWorkflowTest extends AppTestCase
         $em->clear();
 
         return $em->find(MigrationBatch::class, $id);
+    }
+
+    /** @return list<MigrationRow> in file order */
+    private function rows(MigrationBatch $batch): array
+    {
+        return static::getContainer()->get(MigrationRowRepository::class)->findBy(['batch' => $batch], ['lineNumber' => 'ASC']);
     }
 
     private function reload(MigrationBatch $batch): MigrationBatch

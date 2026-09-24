@@ -5,20 +5,40 @@ namespace App\Migration;
 /**
  * Reads an uploaded replacement file. Required columns (any order, extra columns ignored):
  * current_account, new_account. card_ref is optional — the source export with new_account filled in works as-is.
+ *
+ * Files of any length are streamed row by row; nothing holds the whole file in memory.
  */
 final class MappingFileParser
 {
     public const REQUIRED_COLUMNS = ['current_account', 'new_account'];
     /** Longer values are cut here only to fit the column; the validator still rejects anything over 30. */
     private const CELL_MAX_LENGTH = 64;
-    public const MAX_ROWS = 5000;
 
     /**
-     * @return list<array{line: int, card_ref: string, current_account: string, new_account: string}>
+     * Checks the header and counts the mapping rows, so a bad file is refused at upload
+     * rather than after it has been queued.
      *
      * @throws InvalidMappingFile
      */
-    public function parse(string $path): array
+    public function inspect(string $path): int
+    {
+        $count = 0;
+        foreach ($this->rows($path) as $_) {
+            ++$count;
+        }
+        if (0 === $count) {
+            throw new InvalidMappingFile('The file has a header but no mapping rows.');
+        }
+
+        return $count;
+    }
+
+    /**
+     * @return \Generator<array{line: int, card_ref: string, current_account: string, new_account: string}>
+     *
+     * @throws InvalidMappingFile
+     */
+    public function rows(string $path): \Generator
     {
         $handle = @fopen($path, 'r');
         if (false === $handle) {
@@ -39,17 +59,13 @@ final class MappingFileParser
             }
             $index = array_flip($columns);
 
-            $rows = [];
             $line = 1;
             while (false !== ($values = fgetcsv($handle, escape: ''))) {
                 ++$line;
                 if ([null] === $values || '' === trim(implode('', $values))) {
                     continue; // blank line
                 }
-                if (count($rows) >= self::MAX_ROWS) {
-                    throw new InvalidMappingFile(sprintf('The file has more than %d rows; split it into smaller batches.', self::MAX_ROWS));
-                }
-                $rows[] = [
+                yield [
                     'line' => $line,
                     'card_ref' => isset($index['card_ref']) ? $this->cell($values, $index['card_ref']) : '',
                     'current_account' => $this->cell($values, $index['current_account']),
@@ -59,12 +75,6 @@ final class MappingFileParser
         } finally {
             fclose($handle);
         }
-
-        if ([] === $rows) {
-            throw new InvalidMappingFile('The file has a header but no mapping rows.');
-        }
-
-        return $rows;
     }
 
     /** @param array<int, ?string> $values */

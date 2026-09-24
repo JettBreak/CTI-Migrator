@@ -4,6 +4,7 @@ namespace App\Tests\Controller;
 
 use App\Entity\ExportJob;
 use App\Enum\ExportState;
+use App\Service\CardExport;
 use App\Tests\AppTestCase;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -80,6 +81,66 @@ final class ExportControllerTest extends AppTestCase
         self::assertSelectorTextContains('tbody', 'Queued');
         self::assertSelectorExists('[data-controller="auto-refresh"]');
         self::assertSelectorNotExists('meta[http-equiv="refresh"]');
+
+        $this->client->request('GET', sprintf('/exports/%d/download', $job->getId()));
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testARunningExportShowsItIsBeingPreparedInsteadOfADownload(): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $job = new ExportJob('officer', null, 100);
+        $job->start();
+        $em->persist($job);
+        $em->flush();
+
+        $this->client->request('GET', '/exports');
+        self::assertSelectorExists('tbody .download-pending[aria-disabled="true"] .dino-loading.compact.is-active[role="status"]');
+        // No visible label, but screen readers still hear what is happening.
+        self::assertSelectorTextContains('tbody .download-pending .dino-label.visually-hidden', 'Preparing export');
+        self::assertSelectorNotExists(sprintf('a[href="/exports/%d/download"]', $job->getId()));
+    }
+
+    public function testExportButtonsAreDisabledWhileAnExportIsRunning(): void
+    {
+        foreach (['/', '/cards', '/migration', '/exports'] as $page) {
+            $this->client->request('GET', $page);
+            self::assertSelectorExists('form[action$="/exports"] button:not([disabled])', $page.' with no export running');
+        }
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $job = new ExportJob('approver', null, 100);
+        $job->start();
+        $em->persist($job);
+        $em->flush();
+
+        foreach (['/', '/cards', '/migration', '/exports'] as $page) {
+            $crawler = $this->client->request('GET', $page);
+            self::assertSelectorNotExists('form[action$="/exports"] button:not([disabled])', $page);
+            self::assertStringContainsString(sprintf('Export #%d is running', $job->getId()), $crawler->filter('form[action$="/exports"]')->attr('title'), $page);
+        }
+
+        // A page opened before the export started still has an enabled button: the server refuses too.
+        $token = $this->client->getCrawler()->filter('form[action$="/exports"] input[name="_token"]')->attr('value');
+        $this->client->request('POST', '/exports', ['_token' => $token]);
+        self::assertResponseRedirects('/exports', 303);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.error', sprintf('Export #%d is still running', $job->getId()));
+        self::assertSame(1, $this->jobCount(), 'no second export was queued');
+    }
+
+    public function testNoDownloadIsOfferedOnceTheFileIsGone(): void
+    {
+        $this->exportFrom('/cards');
+        $job = $this->latestJob();
+        $this->client->request('GET', '/exports');
+        self::assertSelectorExists(sprintf('a[href="/exports/%d/download"]', $job->getId()));
+
+        unlink(static::getContainer()->get(CardExport::class)->pathFor($job));
+
+        $this->client->request('GET', '/exports');
+        self::assertSelectorNotExists(sprintf('a[href="/exports/%d/download"]', $job->getId()));
+        self::assertSelectorTextContains('tbody', 'File no longer available');
 
         $this->client->request('GET', sprintf('/exports/%d/download', $job->getId()));
         self::assertResponseStatusCodeSame(404);

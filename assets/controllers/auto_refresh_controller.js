@@ -16,12 +16,17 @@ export default class extends Controller {
 
     connect() {
         this.onVisibilityChange = () => (document.hidden ? this.stop() : this.start());
+        // A morphing refresh updates this element in place, so the controller stays connected and
+        // connect() does not run again: re-arm the timer after every render, or it refreshes only once.
+        this.onRender = () => this.start();
         document.addEventListener('visibilitychange', this.onVisibilityChange);
+        document.addEventListener('turbo:render', this.onRender);
         this.start();
     }
 
     disconnect() {
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
+        document.removeEventListener('turbo:render', this.onRender);
         this.stop();
     }
 

@@ -2,14 +2,22 @@
 
 namespace App\Entity;
 
+use App\Repository\MigrationRowRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * One line of an uploaded mapping file: rename core account $currentAccount to $newAccount.
  * $cardRef is optional and only cross-checked; every card linked to the account follows the rename.
+ *
+ * Rows are written in bulk by MigrationRowRepository::insert(); keep its column list in step with this mapping.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: MigrationRowRepository::class)]
+#[ORM\UniqueConstraint(name: 'uniq_migration_row_line', columns: ['batch_id', 'line_number'])]
+#[ORM\Index(name: 'idx_migration_row_current', columns: ['batch_id', 'current_account'])]
+#[ORM\Index(name: 'idx_migration_row_new', columns: ['batch_id', 'new_account'])]
+#[ORM\Index(name: 'idx_migration_row_pending', columns: ['batch_id', 'applied_at', 'current_account'])]
+#[ORM\Index(name: 'idx_migration_row_valid', columns: ['batch_id', 'valid', 'line_number'])]
 class MigrationRow
 {
     #[ORM\Id]
@@ -20,6 +28,10 @@ class MigrationRow
     /** @var list<string> */
     #[ORM\Column(type: Types::JSON)]
     private array $errors = [];
+
+    /** No errors; stored on its own so a batch's invalid rows can be counted and listed through an index. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $valid = false;
 
     #[ORM\Column(length: 32, nullable: true)]
     private ?string $cardDisplay = null;
@@ -35,7 +47,7 @@ class MigrationRow
     private ?\DateTimeImmutable $appliedAt = null;
 
     public function __construct(
-        #[ORM\ManyToOne(inversedBy: 'rows')]
+        #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false)]
         private MigrationBatch $batch,
         #[ORM\Column]
@@ -47,13 +59,13 @@ class MigrationRow
         #[ORM\Column(length: 64)]
         private string $newAccount,
     ) {
-        $batch->addRow($this);
     }
 
     /** @param list<string> $errors */
     public function recordValidation(array $errors, ?string $cardDisplay, ?string $cardholder, ?int $linkedCards): void
     {
         $this->errors = $errors;
+        $this->valid = [] === $errors;
         $this->linkedCards = $linkedCards ?? $this->linkedCards;
         $this->cardDisplay = $cardDisplay ?? $this->cardDisplay;
         $this->cardholder = $cardholder ?? $this->cardholder;
@@ -66,7 +78,7 @@ class MigrationRow
 
     public function isValid(): bool
     {
-        return [] === $this->errors;
+        return $this->valid;
     }
 
     public function getId(): ?int

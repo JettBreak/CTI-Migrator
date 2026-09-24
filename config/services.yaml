@@ -13,6 +13,16 @@ parameters:
     app.export.dir: '%kernel.project_dir%/var/exports'
     # Export files are deleted this long after they finish (hourly, by the worker's scheduler).
     app.export.retention: '7 days'
+    # Account replacement files up to this many rows are validated (and, once approved, applied)
+    # during the request; larger ones are handed to the background worker.
+    app.batch.sync_max_rows: 5000
+    # Accounts renamed per core transaction. Each chunk is re-validated under row locks and
+    # committed on its own, so core rows are only ever locked briefly.
+    app.batch.apply_chunk: 500
+    # Large uploads wait here until the worker has validated them.
+    app.batch.upload_dir: '%kernel.project_dir%/var/uploads'
+    # Largest mapping file accepted. PHP's upload_max_filesize and post_max_size must allow it too.
+    app.batch.upload_max_size: '200M'
 
 services:
     # default configuration for services in *this* file
@@ -33,3 +43,7 @@ when@test:
         # Tiny threshold so the fixture data exercises both the immediate and the queued path.
         app.export.sync_max_rows: 2
         app.export.dir: '%kernel.project_dir%/var/exports/test'
+        # Tiny thresholds so the fixture files exercise the background path and multi-chunk applies.
+        app.batch.sync_max_rows: 3
+        app.batch.apply_chunk: 2
+        app.batch.upload_dir: '%kernel.project_dir%/var/uploads/test'

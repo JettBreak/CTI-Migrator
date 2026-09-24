@@ -32,9 +32,13 @@ final class ExportController extends AbstractController
     #[Route('', name: 'app_exports', methods: ['GET'])]
     public function index(WorkerSupervisor $worker): Response
     {
+        $jobs = $this->jobs->findRecent();
+
         return $this->render('export/index.html.twig', [
             'worker_on' => $worker->isRunning(),
-            'jobs' => $this->jobs->findRecent(),
+            'jobs' => $jobs,
+            // Job id => whether its file can be downloaded right now.
+            'available' => array_combine(array_map(static fn (ExportJob $j) => $j->getId(), $jobs), array_map($this->export->isAvailable(...), $jobs)),
             'refresh' => $this->jobs->hasUnfinished(),
             'sync_max_rows' => $this->getParameter('app.export.sync_max_rows'),
             'retention' => $this->getParameter('app.export.retention'),
@@ -49,6 +53,13 @@ final class ExportController extends AbstractController
     #[IsCsrfTokenValid('card-export')]
     public function request(Request $request, EntityManagerInterface $em, MessageBusInterface $bus, WorkerSupervisor $worker): Response
     {
+        // One export at a time: the buttons are disabled meanwhile, but a page opened earlier may still show them enabled.
+        if (null !== $running = $this->jobs->findRunning()) {
+            $this->addFlash('error', sprintf('Export #%d is still running. You can start another export when it has finished.', $running->getId()));
+
+            return $this->redirectToRoute('app_exports', status: Response::HTTP_SEE_OTHER);
+        }
+
         $status = trim((string) $request->getPayload()->get('status')) ?: null;
         $status = null === $status ? null : mb_substr($status, 0, 100);
         $estimate = $this->export->estimate($status);
@@ -73,12 +84,11 @@ final class ExportController extends AbstractController
     #[Route('/{id}/download', name: 'app_export_download', methods: ['GET'])]
     public function download(ExportJob $job): BinaryFileResponse
     {
-        $path = $this->export->pathFor($job);
-        if (ExportState::Completed !== $job->getState() || !is_file($path)) {
+        if (!$this->export->isAvailable($job)) {
             throw $this->createNotFoundException('This export is not available.');
         }
 
-        $response = $this->file($path, $job->downloadName(), ResponseHeaderBag::DISPOSITION_ATTACHMENT);
+        $response = $this->file($this->export->pathFor($job), $job->downloadName(), ResponseHeaderBag::DISPOSITION_ATTACHMENT);
         // Set explicitly: MIME guessing needs the fileinfo extension, which this server lacks.
         $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
 

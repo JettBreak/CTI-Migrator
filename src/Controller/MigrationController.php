@@ -28,7 +28,7 @@ final class MigrationController extends AbstractController
             'core' => $this->data->cardStats(),
             'renamed' => $batches->countRenamedAccounts(),
             'awaiting' => $batches->countByStatus(BatchStatus::AwaitingApproval),
-            'needs_correction' => $batches->countByStatus(BatchStatus::Invalid) + $batches->countByStatus(BatchStatus::Failed),
+            'needs_correction' => $batches->countByStatus(BatchStatus::Invalid) + $batches->countByStatus(BatchStatus::Failed) + $batches->countByStatus(BatchStatus::Halted),
             'recent' => $batches->findRecent(5),
         ]);
     }

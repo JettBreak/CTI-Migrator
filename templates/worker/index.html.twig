@@ -32,7 +32,10 @@
         {% if worker.state == 'stopping' %}
             <p class="muted">Finishing its current job{% if hb.current %} ({{ hb.current.message }} since {{ hb.current.since|date('H:i:s') }}){% endif %}, then it stops.</p>
             <form method="post" action="{{ path('app_worker_force_stop') }}" data-controller="confirm" data-action="submit->confirm#ask"
-                  data-confirm-message-value="Kill the worker now? An export in progress is abandoned.">
+                  data-confirm-title-value="Force stop the worker?"
+                  data-confirm-message-value="The worker process is killed now. An export in progress is abandoned. A batch in progress keeps the chunks already committed; the chunk it was on is rolled back."
+                  data-confirm-confirm-label-value="Force stop"
+                  data-confirm-tone-value="danger">
                 <input type="hidden" name="_token" value="{{ csrf_token('worker') }}">
                 <button class="button outline small">Force stop</button>
             </form>

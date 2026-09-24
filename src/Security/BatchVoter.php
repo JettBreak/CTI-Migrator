@@ -10,15 +10,19 @@ use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
- * Maker-checker: the officer who uploaded a batch submits it; a different user with
- * ROLE_MIGRATION_APPROVER approves or rejects it.
+ * Maker-checker: officers upload batches (approvers never do: they only check), the officer who
+ * uploaded a batch submits it, and a different user with ROLE_MIGRATION_APPROVER approves or
+ * rejects it, and resumes it if applying stopped part-way.
  *
- * @extends Voter<string, MigrationBatch>
+ * @extends Voter<string, MigrationBatch|null>
  */
 final class BatchVoter extends Voter
 {
+    /** No subject: may this user upload a new batch? */
+    public const UPLOAD = 'BATCH_UPLOAD';
     public const SUBMIT = 'BATCH_SUBMIT';
     public const REVIEW = 'BATCH_REVIEW';
+    public const RESUME = 'BATCH_RESUME';
 
     public function __construct(private readonly AccessDecisionManagerInterface $decisions)
     {
@@ -26,7 +30,11 @@ final class BatchVoter extends Voter
 
     protected function supports(string $attribute, mixed $subject): bool
     {
-        return in_array($attribute, [self::SUBMIT, self::REVIEW], true) && $subject instanceof MigrationBatch;
+        if (self::UPLOAD === $attribute) {
+            return null === $subject;
+        }
+
+        return in_array($attribute, [self::SUBMIT, self::REVIEW, self::RESUME], true) && $subject instanceof MigrationBatch;
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
@@ -36,15 +44,25 @@ final class BatchVoter extends Voter
             return false;
         }
 
+        if (self::UPLOAD === $attribute) {
+            // Approvers inherit ROLE_MIGRATION_OFFICER (role_hierarchy), so check for the approver role itself.
+            $vote?->addReason('Approvers review batches; migration officers upload them.');
+
+            return $this->decisions->decide($token, ['ROLE_MIGRATION_OFFICER']) && !$this->decisions->decide($token, ['ROLE_MIGRATION_APPROVER']);
+        }
+
         if (self::SUBMIT === $attribute) {
             $vote?->addReason('Only the uploader can submit a validated batch.');
 
             return BatchStatus::Validated === $subject->getStatus() && $subject->getUploadedBy() === $user;
         }
 
-        $vote?->addReason('An approver other than the uploader must review a submitted batch.');
+        [$status, $reason] = self::RESUME === $attribute
+            ? [BatchStatus::Halted, 'An approver other than the uploader must resume a halted batch.']
+            : [BatchStatus::AwaitingApproval, 'An approver other than the uploader must review a submitted batch.'];
+        $vote?->addReason($reason);
 
-        return BatchStatus::AwaitingApproval === $subject->getStatus()
+        return $status === $subject->getStatus()
             && $subject->getUploadedBy() !== $user
             && $this->decisions->decide($token, ['ROLE_MIGRATION_APPROVER']);
     }

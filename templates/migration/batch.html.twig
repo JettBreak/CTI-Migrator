@@ -4,31 +4,54 @@
 {% block crumb %}Account replacement <b>/</b> Batch #{{ batch.id }}{% endblock %}
 
 {% block body %}
+{% if busy %}<div hidden data-controller="auto-refresh" data-auto-refresh-interval-value="5"></div>{% endif %}
 <section class="page-head compact">
     <div>
         <span class="eyebrow">BATCH #{{ batch.id }}</span>
         <h1>{{ batch.filename }}</h1>
-        <p>{{ batch.rows|length }} rows · {{ batch.accountCount }} account(s) · {{ batch.validRowCount }} valid · {{ batch.invalidRowCount }} need correction</p>
+        {% if batch.status.value == 'importing' %}
+            <p>{{ batch.rowCount|number_format }} rows · validating against core…</p>
+        {% else %}
+            <p>{{ batch.rowCount|number_format }} rows · {{ batch.accountCount|number_format }} account(s) · {{ batch.validRowCount|number_format }} valid · {{ batch.invalidRowCount|number_format }} need correction</p>
+        {% endif %}
     </div>
     <span class="tag {{ batch.status.tone }}">{{ batch.status.label }}</span>
 </section>
+
+{% if busy %}
+<section class="panel pad processing">
+    <div>
+        {% if batch.status.value == 'importing' %}
+            <h2>Validating rows</h2>
+            <p>{{ batch.validatedRowCount|number_format }} of {{ batch.rowCount|number_format }} rows checked against core. This page refreshes every 5 seconds.</p>
+        {% else %}
+            <h2>Replacing accounts in core</h2>
+            <p>{{ batch.appliedAccountCount|number_format }} of {{ batch.accountCount|number_format }} account(s) replaced. Each chunk commits on its own. This page refreshes every 5 seconds.</p>
+        {% endif %}
+    </div>
+    <div class="progress-track"><i style="width: {{ batch.progress }}%"></i></div>
+</section>
+{% if waiting_for_worker %}
+<p class="flash error">The background worker is off, so this batch will wait until someone turns it on. <a href="{{ path('app_worker') }}">Open Background worker</a></p>
+{% endif %}
+{% endif %}
 
 <section class="panel pad">
     <dl class="facts">
         <div><dt>Uploaded</dt><dd>{{ batch.uploadedAt|date('M j, Y H:i') }} by {{ batch.uploadedBy }}</dd></div>
         <div><dt>Submitted</dt><dd>{{ batch.submittedAt ? batch.submittedAt|date('M j, Y H:i') : '—' }}</dd></div>
         <div><dt>Reviewed</dt><dd>{{ batch.reviewedBy ? batch.reviewedAt|date('M j, Y H:i') ~ ' by ' ~ batch.reviewedBy : '—' }}</dd></div>
-        <div><dt>Applied</dt><dd>{{ batch.status.value == 'completed' ? batch.processedAt|date('M j, Y H:i') : '—' }}</dd></div>
+        <div><dt>Applied</dt><dd>{% if batch.status.value == 'completed' %}{{ batch.processedAt|date('M j, Y H:i') }}{% elseif batch.appliedAccountCount > 0 %}{{ batch.appliedAccountCount|number_format }} of {{ batch.accountCount|number_format }} accounts{% else %}—{% endif %}</dd></div>
     </dl>
 
     {% if batch.status.value == 'invalid' %}
         <p class="exception"><span>!</span> Correct the rows marked below in your file and upload it again. This batch can't be submitted.</p>
-    {% elseif batch.status.value == 'failed' %}
+    {% elseif batch.status.value in ['failed', 'halted'] %}
         <p class="exception"><span>!</span> {{ batch.failureReason }}</p>
     {% elseif batch.status.value == 'rejected' and batch.reviewNote %}
         <p class="exception"><span>!</span> Rejection note: {{ batch.reviewNote }}</p>
     {% elseif batch.status.value == 'processing' %}
-        <p class="exception"><span>!</span> This batch was approved but did not finish. Check core and the logs before doing anything else with it.</p>
+        <p class="exception"><span>!</span> If progress stops moving while the worker is on, check core and the logs before doing anything else with this batch.</p>
     {% endif %}
 
     <div class="review-actions">
@@ -44,11 +67,18 @@
         {% if is_granted('BATCH_REVIEW', batch) %}
             <form method="post" action="{{ path('app_batch_approve', {id: batch.id}) }}"
                   data-controller="confirm" data-action="submit->confirm#ask"
-                  data-confirm-message-value="Rename {{ batch.accountCount }} account(s) in core now? Every linked card follows the new number.">
+                  data-confirm-title-value="Approve and replace {{ batch.accountCount|number_format }} account(s)?"
+                  data-confirm-message-value="The account numbers are replaced in core now, and every linked card follows the new number. Accounts are replaced in chunks; if one chunk fails, the batch stops there and earlier chunks stay replaced."
+                  data-confirm-confirm-label-value="Approve and replace">
                 <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
-                <button class="button primary">Approve and rename {{ batch.accountCount }} account(s) <span>→</span></button>
+                <button class="button primary">Approve and replace {{ batch.accountCount|number_format }} account(s) <span>→</span></button>
             </form>
-            <form method="post" action="{{ path('app_batch_reject', {id: batch.id}) }}">
+            <form method="post" action="{{ path('app_batch_reject', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Reject batch #{{ batch.id }}?"
+                  data-confirm-message-value="Nothing is changed in core. {{ batch.uploadedBy }} will need to correct the file and upload it again."
+                  data-confirm-confirm-label-value="Reject batch"
+                  data-confirm-tone-value="danger">
                 <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
                 <textarea name="note" rows="1" placeholder="Reason for rejection (optional)" maxlength="1000"></textarea>
                 <button class="button outline">Reject</button>
@@ -57,18 +87,47 @@
             <p class="muted">Waiting for an approver other than {{ batch.uploadedBy }}.</p>
         {% endif %}
 
-        {% if batch.status.value == 'completed' %}
+        {% if is_granted('BATCH_RESUME', batch) %}
+            <form method="post" action="{{ path('app_batch_resume', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Resume and replace {{ (batch.accountCount - batch.appliedAccountCount)|number_format }} remaining account(s)?"
+                  data-confirm-message-value="Every remaining row is checked against live core data again first. Accounts already replaced are not touched."
+                  data-confirm-confirm-label-value="Resume">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <button class="button primary">Resume: replace remaining {{ (batch.accountCount - batch.appliedAccountCount)|number_format }} account(s) <span>→</span></button>
+            </form>
+        {% elseif batch.status.value == 'halted' %}
+            <p class="muted">An approver other than {{ batch.uploadedBy }} can resume this batch.</p>
+        {% endif %}
+
+        {% if batch.status.value in ['completed', 'halted'] %}
             <a class="button primary" href="{{ path('app_batch_report', {id: batch.id}) }}" data-turbo="false">⇩ Export migration report</a>
+        {% endif %}
+        {% if batch.status.value == 'halted' %}
+            <a class="button outline" href="{{ path('app_batch_rows', {id: batch.id, filter: 'pending'}) }}" data-turbo="false">⇩ Rows not replaced yet</a>
+        {% endif %}
+        {% if not busy and batch.invalidRowCount > 0 %}
+            <a class="button outline" href="{{ path('app_batch_rows', {id: batch.id, filter: 'invalid'}) }}" data-turbo="false">⇩ Rows to correct ({{ batch.invalidRowCount|number_format }})</a>
         {% endif %}
     </div>
 </section>
 
 <section class="panel table-panel">
+    {% if batch.invalidRowCount > 0 %}
+    <div class="table-tools">
+        <span class="muted">{{ invalid_only ? 'Showing only rows that need correction.' : 'Showing all rows.' }}</span>
+        {% if invalid_only %}
+            <a href="{{ path('app_batch_show', {id: batch.id}) }}">Show all rows</a>
+        {% else %}
+            <a href="{{ path('app_batch_show', {id: batch.id, invalid: 1}) }}">Show only rows to correct ({{ batch.invalidRowCount|number_format }})</a>
+        {% endif %}
+    </div>
+    {% endif %}
     <div class="table-wrap">
         <table>
             <thead><tr><th>Line</th><th>Card / cardholder</th><th>Current account</th><th>New account</th><th>Cards affected</th><th>Validation</th></tr></thead>
             <tbody>
-            {% for row in batch.rows %}
+            {% for row in rows %}
                 <tr>
                     <td class="muted">{{ row.lineNumber }}</td>
                     <td>{% if row.cardRef %}<b class="mono">{{ row.cardDisplay ?? ('ref ' ~ row.cardRef) }}</b><small class="block">{{ row.cardholder ?? '—' }}</small>{% else %}<span class="muted">—</span>{% endif %}</td>
@@ -77,18 +136,34 @@
                     <td>{{ row.linkedCards ?? '—' }}</td>
                     <td>
                         {% if row.appliedAt %}
-                            <span class="validation-status verified">✓ Renamed</span>
+                            <span class="validation-status verified">✓ Replaced</span>
                         {% elseif row.valid %}
-                            <span class="validation-status verified">✓ Ready to rename</span>
+                            <span class="validation-status verified">✓ Ready to replace</span>
                         {% else %}
                             <ul class="row-errors">{% for error in row.errors %}<li>{{ error }}</li>{% endfor %}</ul>
                         {% endif %}
                     </td>
                 </tr>
+            {% else %}
+                <tr><td colspan="6" class="muted">{{ batch.status.value == 'importing' ? 'Rows appear here as they are validated.' : 'No rows.' }}</td></tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
+    {% if page_count > 1 %}
+    {% set query = invalid_only ? {id: batch.id, invalid: 1} : {id: batch.id} %}
+    <div class="pagination">
+        <span>Showing {{ ((page - 1) * per_page + 1)|number_format }}–{{ min(page * per_page, total)|number_format }} of {{ total|number_format }} rows</span>
+        <div>
+            {% if page > 1 %}<a href="{{ path('app_batch_show', query|merge({page: page - 1})) }}">←</a>{% else %}<button disabled>←</button>{% endif %}
+            {% set window_start = max(1, page - 2) %}{% set window_end = min(page_count, page + 2) %}
+            {% if window_start > 1 %}<a href="{{ path('app_batch_show', query|merge({page: 1})) }}">1</a>{% if window_start > 2 %}<span>…</span>{% endif %}{% endif %}
+            {% for number in window_start..window_end %}<a href="{{ path('app_batch_show', query|merge({page: number})) }}" class="{{ number == page ? 'selected' }}">{{ number }}</a>{% endfor %}
+            {% if window_end < page_count %}{% if window_end < page_count - 1 %}<span>…</span>{% endif %}<a href="{{ path('app_batch_show', query|merge({page: page_count})) }}">{{ page_count }}</a>{% endif %}
+            {% if page < page_count %}<a href="{{ path('app_batch_show', query|merge({page: page + 1})) }}">→</a>{% else %}<button disabled>→</button>{% endif %}
+        </div>
+    </div>
+    {% endif %}
 </section>
 
 <section class="panel pad">
