@@ -42,7 +42,7 @@ final class ExportControllerTest extends AppTestCase
         self::assertSelectorTextContains('.flash.success', 'is being prepared');
         self::assertSelectorTextContains('tbody', 'All statuses');
         self::assertSelectorTextContains('tbody', 'Completed');
-        self::assertSelectorTextContains('tbody', '5 / ~5 rows');
+        self::assertSelectorTextContains('tbody', '5 cards');
 
         $job = $this->latestJob();
         self::assertSame(ExportState::Completed, $job->getState());
@@ -64,6 +64,7 @@ final class ExportControllerTest extends AppTestCase
 
         $job = $this->latestJob();
         self::assertSame('Active', $job->getStatusFilter());
+        self::assertSame(4, $job->getCardsWritten());
         self::assertSame(4, $job->getRowsWritten());
         self::assertSame(sprintf('card-account-source-active-%d.csv', $job->getId()), $job->downloadName());
     }
@@ -77,7 +78,8 @@ final class ExportControllerTest extends AppTestCase
 
         $this->client->request('GET', '/exports');
         self::assertSelectorTextContains('tbody', 'Queued');
-        self::assertSelectorExists('meta[http-equiv="refresh"]');
+        self::assertSelectorExists('[data-controller="auto-refresh"]');
+        self::assertSelectorNotExists('meta[http-equiv="refresh"]');
 
         $this->client->request('GET', sprintf('/exports/%d/download', $job->getId()));
         self::assertResponseStatusCodeSame(404);

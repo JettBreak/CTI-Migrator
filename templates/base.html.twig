@@ -21,7 +21,9 @@
         }
     </script>
     {% block importmap %}{{ importmap('app') }}{% endblock %}
-    {% block head_extra %}{% endblock %}
+    {# Same-page refreshes (e.g. auto-refresh) update the page in place and keep the scroll position. #}
+    <meta name="turbo-refresh-method" content="morph">
+    <meta name="turbo-refresh-scroll" content="preserve">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased {% block page_class %}{% endblock %}">
 <aside class="sidebar shadow-2xl shadow-slate-900/20">

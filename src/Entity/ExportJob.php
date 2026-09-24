@@ -21,8 +21,13 @@ class ExportJob
     #[ORM\Column(length: 16, enumType: ExportState::class)]
     private ExportState $state = ExportState::Queued;
 
+    /** CSV rows written; a card linked to several accounts gives one row per account. */
     #[ORM\Column]
     private int $rowsWritten = 0;
+
+    /** Cards written so far: the unit of progress, comparable with $expectedCards. */
+    #[ORM\Column(options: ['default' => 0])]
+    private int $cardsWritten = 0;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -39,9 +44,9 @@ class ExportJob
         /** Only cards with this status description; null = all cards. */
         #[ORM\Column(length: 100, nullable: true)]
         private ?string $statusFilter,
-        /** Row estimate at request time (from the cached status counts), for the progress bar. */
+        /** Card count at request time (from the cached status counts), for the progress bar. */
         #[ORM\Column]
-        private int $expectedRows,
+        private int $expectedCards,
     ) {
         $this->createdAt = new \DateTimeImmutable();
     }
@@ -51,9 +56,10 @@ class ExportJob
         $this->state = ExportState::Running;
     }
 
-    public function addRows(int $count): void
+    public function addProgress(int $cards, int $rows): void
     {
-        $this->rowsWritten += $count;
+        $this->cardsWritten += $cards;
+        $this->rowsWritten += $rows;
     }
 
     public function complete(): void
@@ -82,7 +88,7 @@ class ExportJob
             return 100;
         }
 
-        return $this->expectedRows > 0 ? min(99, (int) floor($this->rowsWritten / $this->expectedRows * 100)) : 0;
+        return $this->expectedCards > 0 ? min(99, (int) floor($this->cardsWritten / $this->expectedCards * 100)) : 0;
     }
 
     public function downloadName(): string
@@ -112,9 +118,14 @@ class ExportJob
         return $this->statusFilter;
     }
 
-    public function getExpectedRows(): int
+    public function getExpectedCards(): int
     {
-        return $this->expectedRows;
+        return $this->expectedCards;
+    }
+
+    public function getCardsWritten(): int
+    {
+        return $this->cardsWritten;
     }
 
     public function getRowsWritten(): int

@@ -2,9 +2,9 @@
 
 {% block title %}Exports · Coreware{% endblock %}
 {% block crumb %}Exports{% endblock %}
-{% block head_extra %}{% if refresh %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 
 {% block body %}
+{% if refresh %}<div hidden data-controller="auto-refresh" data-auto-refresh-interval-value="5"></div>{% endif %}
 <section class="page-head compact">
     <div>
         <span class="eyebrow">DATA MANAGEMENT</span>
@@ -29,7 +29,13 @@
                     <td>{{ job.statusFilter ?? 'All statuses' }}{% if job.state.value == 'completed' and job.finishedAt %}<small class="block muted">file kept until {{ job.finishedAt|date_modify('+' ~ retention)|date('M j, H:i') }}</small>{% endif %}</td>
                     <td>{{ job.createdAt|date('M j, Y H:i') }}<small class="block muted">{{ job.requestedBy }}</small></td>
                     <td>
-                        {{ job.rowsWritten|number_format }} / ~{{ job.expectedRows|number_format }} rows
+                        {% if job.state.value == 'running' or job.state.value == 'queued' %}
+                            {{ job.cardsWritten|number_format }} / ~{{ job.expectedCards|number_format }} cards
+                        {% elseif job.cardsWritten > 0 %}
+                            {{ job.cardsWritten|number_format }} cards<small class="block muted">{{ job.rowsWritten|number_format }} rows (one per linked account)</small>
+                        {% else %}
+                            {{ job.rowsWritten|number_format }} rows
+                        {% endif %}
                         {% if not job.state.finished %}<div class="progress-track"><i style="width: {{ job.progress }}%"></i></div>{% endif %}
                     </td>
                     <td><span class="tag {{ job.state.tone }}">{{ job.state.label }}</span>{% if job.error %}<small class="block muted">{{ job.error }}</small>{% endif %}</td>

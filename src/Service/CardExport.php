@@ -52,7 +52,7 @@ final class CardExport
     /**
      * Writes the export to $path. The file only appears under its final name once complete.
      *
-     * @param callable(int): void $onChunk called with the number of rows written after each chunk
+     * @param callable(int, int): void $onChunk called after each chunk with the cards and the rows it wrote
      */
     public function writeFile(?string $status, string $path, callable $onChunk): void
     {
@@ -65,7 +65,8 @@ final class CardExport
                 foreach ($rows as $row) {
                     $this->csv->writeRow($handle, $this->toCsv($row));
                 }
-                $onChunk(\count($rows));
+                // A chunk never splits a card (chunks are cut by card), so this counts each card once.
+                $onChunk(\count(array_unique(array_column($rows, 'card_ref'))), \count($rows));
             }
         } catch (\Throwable $e) {
             fclose($handle);

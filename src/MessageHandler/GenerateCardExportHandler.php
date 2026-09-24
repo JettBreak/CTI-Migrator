@@ -35,8 +35,8 @@ final class GenerateCardExportHandler
         $this->em->flush();
 
         try {
-            $this->export->writeFile($job->getStatusFilter(), $this->export->pathFor($job), function (int $rows) use ($job): void {
-                $job->addRows($rows);
+            $this->export->writeFile($job->getStatusFilter(), $this->export->pathFor($job), function (int $cards, int $rows) use ($job): void {
+                $job->addProgress($cards, $rows);
                 $this->em->flush();
             });
             $job->complete();

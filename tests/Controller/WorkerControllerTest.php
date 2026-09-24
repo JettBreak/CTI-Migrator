@@ -24,6 +24,8 @@ final class WorkerControllerTest extends AppTestCase
         $crawler = $this->client->request('GET', '/worker');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('#worker-state', 'Stopped');
+        self::assertSelectorExists('[data-controller="auto-refresh"]');
+        self::assertSelectorNotExists('meta[http-equiv="refresh"]', 'a meta refresh keeps firing after Turbo navigates away');
         self::assertNull($crawler->filter('input[name="on"]')->attr('checked'));
 
         // Switch on: a process is launched and reported as starting until its first heartbeat.

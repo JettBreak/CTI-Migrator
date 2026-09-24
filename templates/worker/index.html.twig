@@ -2,13 +2,13 @@
 
 {% block title %}Background worker · Coreware{% endblock %}
 {% block crumb %}Background worker{% endblock %}
-{% block head_extra %}<meta http-equiv="refresh" content="5">{% endblock %}
 
 {% set hb = worker.heartbeat %}
 {% set on = worker.state in ['running', 'starting'] %}
 {% set tone = {running: 'success', starting: 'warning', stopping: 'warning', stopped: 'danger'}[worker.state] %}
 
 {% block body %}
+<div hidden data-controller="auto-refresh" data-auto-refresh-interval-value="5"></div>
 <section class="page-head compact">
     <div>
         <span class="eyebrow">OPERATIONS</span>
