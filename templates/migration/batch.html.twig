@@ -1,0 +1,102 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Batch #{{ batch.id }} · Coreware{% endblock %}
+{% block crumb %}Account replacement <b>/</b> Batch #{{ batch.id }}{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">BATCH #{{ batch.id }}</span>
+        <h1>{{ batch.filename }}</h1>
+        <p>{{ batch.rows|length }} rows · {{ batch.accountCount }} account(s) · {{ batch.validRowCount }} valid · {{ batch.invalidRowCount }} need correction</p>
+    </div>
+    <span class="tag {{ batch.status.tone }}">{{ batch.status.label }}</span>
+</section>
+
+<section class="panel pad">
+    <dl class="facts">
+        <div><dt>Uploaded</dt><dd>{{ batch.uploadedAt|date('M j, Y H:i') }} by {{ batch.uploadedBy }}</dd></div>
+        <div><dt>Submitted</dt><dd>{{ batch.submittedAt ? batch.submittedAt|date('M j, Y H:i') : '—' }}</dd></div>
+        <div><dt>Reviewed</dt><dd>{{ batch.reviewedBy ? batch.reviewedAt|date('M j, Y H:i') ~ ' by ' ~ batch.reviewedBy : '—' }}</dd></div>
+        <div><dt>Applied</dt><dd>{{ batch.status.value == 'completed' ? batch.processedAt|date('M j, Y H:i') : '—' }}</dd></div>
+    </dl>
+
+    {% if batch.status.value == 'invalid' %}
+        <p class="exception"><span>!</span> Correct the rows marked below in your file and upload it again. This batch can't be submitted.</p>
+    {% elseif batch.status.value == 'failed' %}
+        <p class="exception"><span>!</span> {{ batch.failureReason }}</p>
+    {% elseif batch.status.value == 'rejected' and batch.reviewNote %}
+        <p class="exception"><span>!</span> Rejection note: {{ batch.reviewNote }}</p>
+    {% elseif batch.status.value == 'processing' %}
+        <p class="exception"><span>!</span> This batch was approved but did not finish. Check core and the logs before doing anything else with it.</p>
+    {% endif %}
+
+    <div class="review-actions">
+        {% if is_granted('BATCH_SUBMIT', batch) %}
+            <form method="post" action="{{ path('app_batch_submit', {id: batch.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <button class="button primary">Submit for approval <span>→</span></button>
+            </form>
+        {% elseif batch.status.value == 'validated' %}
+            <p class="muted">Only {{ batch.uploadedBy }} can submit this batch.</p>
+        {% endif %}
+
+        {% if is_granted('BATCH_REVIEW', batch) %}
+            <form method="post" action="{{ path('app_batch_approve', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-message-value="Rename {{ batch.accountCount }} account(s) in core now? Every linked card follows the new number.">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <button class="button primary">Approve and rename {{ batch.accountCount }} account(s) <span>→</span></button>
+            </form>
+            <form method="post" action="{{ path('app_batch_reject', {id: batch.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <textarea name="note" rows="1" placeholder="Reason for rejection (optional)" maxlength="1000"></textarea>
+                <button class="button outline">Reject</button>
+            </form>
+        {% elseif batch.status.value == 'awaiting_approval' %}
+            <p class="muted">Waiting for an approver other than {{ batch.uploadedBy }}.</p>
+        {% endif %}
+
+        {% if batch.status.value == 'completed' %}
+            <a class="button primary" href="{{ path('app_batch_report', {id: batch.id}) }}" data-turbo="false">⇩ Export migration report</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="panel table-panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Line</th><th>Card / cardholder</th><th>Current account</th><th>New account</th><th>Cards affected</th><th>Validation</th></tr></thead>
+            <tbody>
+            {% for row in batch.rows %}
+                <tr>
+                    <td class="muted">{{ row.lineNumber }}</td>
+                    <td>{% if row.cardRef %}<b class="mono">{{ row.cardDisplay ?? ('ref ' ~ row.cardRef) }}</b><small class="block">{{ row.cardholder ?? '—' }}</small>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td class="mono">{{ row.currentAccount }}</td>
+                    <td class="mono {{ row.valid ? 'good-cell' : '' }}">{{ row.newAccount }}</td>
+                    <td>{{ row.linkedCards ?? '—' }}</td>
+                    <td>
+                        {% if row.appliedAt %}
+                            <span class="validation-status verified">✓ Renamed</span>
+                        {% elseif row.valid %}
+                            <span class="validation-status verified">✓ Ready to rename</span>
+                        {% else %}
+                            <ul class="row-errors">{% for error in row.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel pad">
+    <span class="eyebrow">AUDIT TRAIL</span>
+    <ul class="audit">
+        {% for entry in audit %}
+            <li><b>{{ entry.action|capitalize }}</b> by {{ entry.actor }} · <span class="muted">{{ entry.createdAt|date('M j, Y H:i:s') }}</span>{% if entry.details %}<small class="block muted">{{ entry.details }}</small>{% endif %}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}

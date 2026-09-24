@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Coreware Migration{% endblock %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo-32.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-256.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { axiom: { 50: '#eef4ff', 100: '#dce9ff', 500: '#3068db', 700: '#1f4fae', 900: '#10264e' } },
+                    fontFamily: { sans: ['DM Sans', 'sans-serif'], display: ['Manrope', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased {% block page_class %}{% endblock %}">
+<aside class="sidebar shadow-2xl shadow-slate-900/20">
+    <a class="brand" href="{{ path('app_dashboard') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>migration control</small></span></a>
+    <nav>
+        <a href="{{ path('app_dashboard') }}" class="{{ app.request.attributes.get('_route') == 'app_dashboard' ? 'active' }}"><span>▦</span> Overview</a>
+        <p>DATA MANAGEMENT</p>
+        <a href="{{ path('app_cards') }}" class="{{ app.request.attributes.get('_route') == 'app_cards' ? 'active' }}"><span>▣</span> Card directory</a>
+        <a href="{{ path('app_accounts') }}" class="{{ app.request.attributes.get('_route') == 'app_accounts' ? 'active' }}"><span>◫</span> Account directory</a>
+        <p>MIGRATION</p>
+        <a href="{{ path('app_migration') }}" class="{{ app.request.attributes.get('_route') matches '/^app_(migration|batch_)/' ? 'active' }}"><span>⇄</span> Account replacement</a>
+        <a href="{{ path('app_exports') }}" class="{{ app.request.attributes.get('_route') starts with 'app_export' ? 'active' }}"><span>⇩</span> Exports</a>
+        <p>OPERATIONS</p>
+        <a href="{{ path('app_worker') }}" class="{{ app.request.attributes.get('_route') starts with 'app_worker' ? 'active' }}"><span>⚙</span> Background worker</a>
+    </nav>
+    <div class="sidebar-footer"><span class="live-dot"></span> Secure environment<br><small>v1.0</small></div>
+</aside>
+<main>
+    <header class="bg-white">
+        <div class="crumb">Operations <b>/</b> {% block crumb %}Overview{% endblock %}</div>
+        {% if app.user %}<div class="profile"><div class="avatar">{{ app.user.userIdentifier|slice(0, 2)|upper }}</div><div><b>{{ app.user.userIdentifier }}</b><small>{{ is_granted('ROLE_MIGRATION_APPROVER') ? 'Migration Approver' : 'Migration Officer' }} · <a href="{{ logout_path() }}" data-turbo="false">Sign out</a></small></div></div>{% endif %}
+    </header>
+    {% for type, messages in app.flashes(['success', 'error']) %}{% for message in messages %}<div class="flash {{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+    {% block body %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Migration overview · Coreware{% endblock %}
+
+{% block body %}
+<section class="page-head">
+    <div>
+        <span class="eyebrow">CONTROL CENTER</span>
+        <h1>Migration overview</h1>
+        <p>Renumber card-linked accounts with validation, maker-checker approval and a full audit trail.</p>
+    </div>
+    <a class="button primary" href="{{ path('app_migration') }}">Start account replacement <span>→</span></a>
+</section>
+
+<section class="metrics">
+    <article><span class="metric-icon blue">▣</span><div><small>Total cards</small><strong>{{ core.cards|number_format }}</strong><em>in core</em></div></article>
+    <article><span class="metric-icon violet">◫</span><div><small>Cards with a linked account</small><strong>{{ core.linked|number_format }}</strong><em>{{ core.cards > 0 ? (core.linked / core.cards * 100)|number_format(1) ~ '% of cards' : '—' }}</em></div></article>
+    <article><span class="metric-icon green">✓</span><div><small>Accounts migrated</small><strong>{{ renamed|number_format }}</strong><em>renamed by completed batches</em></div></article>
+    <article><span class="metric-icon amber">!</span><div><small>Needs attention</small><strong>{{ (awaiting + needs_correction)|number_format }}</strong><em>{{ awaiting }} awaiting approval · {{ needs_correction }} to correct</em></div></article>
+</section>
+
+<section class="grid-two">
+    <article class="panel process">
+        <div class="panel-title"><div><span class="eyebrow">GUIDED WORKFLOW</span><h2>Account replacement</h2></div></div>
+        <div class="step"><i>1</i><div><b>Export current records</b><p>Download the card-account baseline and fill in each <code>new_account</code>.</p></div>{{ include('export/_button.html.twig', {label: 'Export CSV', class: 'link-button'}) }}</div>
+        <div class="step"><i>2</i><div><b>Upload and validate</b><p>Each current account must exist in core; each new number must not.</p></div></div>
+        <div class="step"><i>3</i><div><b>Submit, approve, apply</b><p>A second person approves; accounts are renamed in core all-or-nothing.</p></div></div>
+        <a class="button dark wide" href="{{ path('app_migration') }}">Open migration workspace <span>→</span></a>
+    </article>
+    <article class="panel recent">
+        <div class="panel-title"><div><span class="eyebrow">ACTIVITY</span><h2>Recent batches</h2></div><a href="{{ path('app_migration') }}">View all</a></div>
+        {% for batch in recent %}
+            <div class="batch">
+                <span class="batch-icon {{ batch.status.tone == 'success' ? 'done' : 'review' }}">{{ batch.status.tone == 'success' ? '✓' : '!' }}</span>
+                <div><b><a href="{{ path('app_batch_show', {id: batch.id}) }}">{{ batch.filename }}</a></b><small>{{ batch.rows|length }} records · uploaded {{ batch.uploadedAt|date('M j, H:i') }} by {{ batch.uploadedBy }}</small></div>
+                <span class="tag {{ batch.status.tone }}">{{ batch.status.label }}</span>
+            </div>
+        {% else %}
+            <p class="muted">No batches yet.</p>
+        {% endfor %}
+    </article>
+</section>
+{% endblock %}

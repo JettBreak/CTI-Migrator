@@ -1,0 +1,90 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Background worker · Coreware{% endblock %}
+{% block crumb %}Background worker{% endblock %}
+{% block head_extra %}<meta http-equiv="refresh" content="5">{% endblock %}
+
+{% set hb = worker.heartbeat %}
+{% set on = worker.state in ['running', 'starting'] %}
+{% set tone = {running: 'success', starting: 'warning', stopping: 'warning', stopped: 'danger'}[worker.state] %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">OPERATIONS</span>
+        <h1>Background worker</h1>
+        <p>Prepares large exports and runs hourly maintenance. This page refreshes every 5 seconds.</p>
+    </div>
+    <span class="tag {{ tone }}" id="worker-state">{{ worker.state|capitalize }}</span>
+</section>
+
+<section class="panel pad">
+    <div class="worker-switch-row">
+        <form method="post" action="{{ path('app_worker_switch') }}" data-controller="autosubmit" data-turbo="false">
+            <input type="hidden" name="_token" value="{{ csrf_token('worker') }}">
+            <label class="switch">
+                <input type="checkbox" name="on" value="1" {{ on ? 'checked' }} {{ worker.state == 'stopping' ? 'disabled' }} data-action="change->autosubmit#submit">
+                <span class="slider"></span>
+                <b>{{ on ? 'On' : (worker.state == 'stopping' ? 'Stopping…' : 'Off') }}</b>
+            </label>
+            <noscript><button class="button outline small" name="on" value="{{ on ? '0' : '1' }}">{{ on ? 'Turn off' : 'Turn on' }}</button></noscript>
+        </form>
+        {% if worker.state == 'stopping' %}
+            <p class="muted">Finishing its current job{% if hb.current %} ({{ hb.current.message }} since {{ hb.current.since|date('H:i:s') }}){% endif %}, then it stops.</p>
+            <form method="post" action="{{ path('app_worker_force_stop') }}" data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-message-value="Kill the worker now? An export in progress is abandoned.">
+                <input type="hidden" name="_token" value="{{ csrf_token('worker') }}">
+                <button class="button outline small">Force stop</button>
+            </form>
+        {% endif %}
+    </div>
+
+    {% if worker.crashed %}
+        <p class="exception"><span>!</span> The worker stopped unexpectedly (it was not switched off). Check the log below, then turn it on again.</p>
+    {% elseif worker.unresponsive %}
+        <p class="exception"><span>!</span> No heartbeat for over a minute although the process exists. It may be stuck; use the switch to restart it.</p>
+    {% elseif worker.state == 'stopped' and queued > 0 %}
+        <p class="exception"><span>!</span> {{ queued }} export(s) are waiting. They start as soon as the worker is on.</p>
+    {% endif %}
+
+    <dl class="facts">
+        <div><dt>Process</dt><dd>{{ worker.pid ? 'PID ' ~ worker.pid : '—' }}</dd></div>
+        <div><dt>Running since</dt><dd>{{ worker.state in ['running', 'stopping'] and hb ? hb.startedAt|date('M j, H:i:s') : '—' }}</dd></div>
+        <div><dt>Last heartbeat</dt><dd>{{ hb ? hb.beatAt|date('M j, H:i:s') : '—' }}</dd></div>
+        <div><dt>Now doing</dt><dd>{{ hb and hb.current ? hb.current.message ~ ' (since ' ~ hb.current.since|date('H:i:s') ~ ')' : (worker.state == 'running' ? 'Idle' : '—') }}</dd></div>
+        <div><dt>Jobs handled</dt><dd>{{ hb ? hb.handled : 0 }}{% if hb and hb.failed %} · <span class="text-red-700">{{ hb.failed }} failed</span>{% endif %}</dd></div>
+        <div><dt>Last job</dt><dd>{{ hb and hb.last ? hb.last.message ~ ' at ' ~ hb.last.at|date('M j, H:i:s') : '—' }}</dd></div>
+        <div><dt>Queue</dt><dd>{{ queued }} export(s) waiting · {{ running }} running</dd></div>
+        <div><dt>Last switched</dt><dd>
+            {% if worker.stop and (not worker.launch or worker.stop.at > worker.launch.at) %}off by {{ worker.stop.by }} at {{ worker.stop.at|date('M j, H:i') }}
+            {% elseif worker.launch %}on by {{ worker.launch.by }} at {{ worker.launch.at|date('M j, H:i') }}
+            {% else %}—{% endif %}
+        </dd></div>
+    </dl>
+    {% if hb and hb.lastError %}<p class="muted">Last error ({{ hb.lastError.at|date('M j, H:i:s') }}): {{ hb.lastError.message }}</p>{% endif %}
+</section>
+
+<section class="panel pad">
+    <div class="panel-title"><div><span class="eyebrow">EXPORT FILES</span><h2>Automatic cleanup</h2></div>
+        <form method="post" action="{{ path('app_worker_cleanup') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('worker') }}">
+            <button class="button outline small">Run cleanup now</button>
+        </form>
+    </div>
+    <dl class="facts">
+        <div><dt>Retention</dt><dd>{{ retention }}, checked hourly while the worker is on</dd></div>
+        <div><dt>Stored now</dt><dd>{{ usage.files }} file(s) · {{ (usage.bytes / 1048576)|number_format(1) }} MB</dd></div>
+        <div><dt>Last cleanup</dt><dd>{% if last_cleanup %}{{ last_cleanup.at|date('M j, H:i') }} by {{ last_cleanup.by }} — {{ last_cleanup.expired }} expired, {{ last_cleanup.files }} file(s) removed{% else %}Not run yet{% endif %}</dd></div>
+    </dl>
+</section>
+
+<section class="panel pad">
+    <span class="eyebrow">WORKER LOG</span>
+    {% for file, lines in logs %}
+        <p class="muted"><code>var/log/{{ file }}</code> (last {{ lines|length }} lines)</p>
+        <pre class="log-tail">{{ lines|join("\n") }}</pre>
+    {% else %}
+        <p class="muted">No worker output yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

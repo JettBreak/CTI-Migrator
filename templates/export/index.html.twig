@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Exports · Coreware{% endblock %}
+{% block crumb %}Exports{% endblock %}
+{% block head_extra %}{% if refresh %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">DATA MANAGEMENT</span>
+        <h1>Exports</h1>
+        <p>Card exports over {{ sync_max_rows|number_format }} rows are prepared in the background.{% if refresh %} This page refreshes every 5 seconds while one is running.{% endif %}</p>
+    </div>
+    {{ include('export/_button.html.twig', {label: '⇩ Export all cards'}) }}
+</section>
+
+{% if not worker_on and refresh %}
+<p class="flash error">The background worker is off — queued exports won't start until it is turned on. <a href="{{ path('app_worker') }}">Open Background worker</a></p>
+{% endif %}
+
+<section class="panel table-panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Export</th><th>Cards</th><th>Requested</th><th>Progress</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for job in jobs %}
+                <tr>
+                    <td><b>#{{ job.id }}</b></td>
+                    <td>{{ job.statusFilter ?? 'All statuses' }}{% if job.state.value == 'completed' and job.finishedAt %}<small class="block muted">file kept until {{ job.finishedAt|date_modify('+' ~ retention)|date('M j, H:i') }}</small>{% endif %}</td>
+                    <td>{{ job.createdAt|date('M j, Y H:i') }}<small class="block muted">{{ job.requestedBy }}</small></td>
+                    <td>
+                        {{ job.rowsWritten|number_format }} / ~{{ job.expectedRows|number_format }} rows
+                        {% if not job.state.finished %}<div class="progress-track"><i style="width: {{ job.progress }}%"></i></div>{% endif %}
+                    </td>
+                    <td><span class="tag {{ job.state.tone }}">{{ job.state.label }}</span>{% if job.error %}<small class="block muted">{{ job.error }}</small>{% endif %}</td>
+                    <td>{% if job.state.value == 'completed' %}<a class="button primary small" href="{{ path('app_export_download', {id: job.id}) }}" data-turbo="false">⇩ Download</a>{% endif %}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="muted">No background exports yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

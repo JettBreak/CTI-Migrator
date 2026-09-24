@@ -1,0 +1,51 @@
+doctrine:
+    dbal:
+        # "app" is this application's own database (batches, row results, audit trail).
+        # The ORM and Doctrine Migrations only ever touch this connection.
+        default_connection: app
+        connections:
+            app:
+                url: '%env(resolve:APP_DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
+            # Core banking data. Read by the directories; written only by the relink gateway.
+            coreapp:
+                url: '%env(resolve:DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
+            core_security:
+                url: '%env(resolve:CORE_SECURITY_DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
+    orm:
+        default_entity_manager: default
+        entity_managers:
+            default:
+                connection: app
+                validate_xml_mapping: true
+                naming_strategy: doctrine.orm.naming_strategy.underscore
+                auto_mapping: true
+                mappings:
+                    App:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Entity'
+                        prefix: 'App\Entity'
+                        alias: App
+
+when@prod:
+    doctrine:
+        orm:
+            entity_managers:
+                default:
+                    query_cache_driver:
+                        type: pool
+                        pool: doctrine.system_cache_pool
+                    result_cache_driver:
+                        type: pool
+                        pool: doctrine.result_cache_pool
+
+    framework:
+        cache:
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.app
+                doctrine.system_cache_pool:
+                    adapter: cache.system

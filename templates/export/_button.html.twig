@@ -1,0 +1,6 @@
+{# POST form for the card-account source export. Params: status (optional), label, class. #}
+<form method="post" action="{{ path('app_export_request') }}" class="inline-form" data-turbo="false">
+    <input type="hidden" name="_token" value="{{ csrf_token('card-export') }}">
+    {% if status|default(null) %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <button type="submit" class="{{ class|default('button outline') }}">{{ label }}</button>
+</form>

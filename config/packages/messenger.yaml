@@ -1,0 +1,25 @@
+framework:
+    messenger:
+        buses:
+            messenger.bus.default:
+                middleware:
+                    # Long-running worker: reconnect the app DB if MySQL closed an idle connection.
+                    - doctrine_ping_connection
+
+        transports:
+            # Queue table lives in the app database (see MESSENGER_TRANSPORT_DSN); created by a migration.
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 0 # an export marks itself failed; re-running it is a user decision
+            sync: 'sync://'
+
+        routing:
+            App\Message\GenerateCardExport: async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                # Run queued work inline so functional tests see the result.
+                async: 'sync://'

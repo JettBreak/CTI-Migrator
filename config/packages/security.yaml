@@ -1,0 +1,55 @@
+security:
+    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+
+    # Users live in config; password hashes come from env/secrets so none are committed.
+    # Generate a hash with: bin/console security:hash-password
+    providers:
+        users_in_memory:
+            memory:
+                users:
+                    officer:
+                        password: '%env(MIGRATION_OFFICER_PASSWORD_HASH)%'
+                        roles: ['ROLE_MIGRATION_OFFICER']
+                    # Checker for maker-checker: approves/rejects batches uploaded by someone else.
+                    approver:
+                        password: '%env(MIGRATION_APPROVER_PASSWORD_HASH)%'
+                        roles: ['ROLE_MIGRATION_APPROVER']
+
+    role_hierarchy:
+        ROLE_MIGRATION_APPROVER: [ROLE_MIGRATION_OFFICER]
+
+    firewalls:
+        dev:
+            # Ensure dev tools and static assets are always allowed
+            pattern: ^/(_profiler|_wdt|assets|build|styles|scripts)/
+            security: false
+        main:
+            lazy: true
+            provider: users_in_memory
+            form_login:
+                login_path: app_login
+                check_path: app_login
+                default_target_path: app_dashboard
+                enable_csrf: true
+            logout:
+                path: app_logout
+                target: app_login
+                enable_csrf: true
+
+    # Note: Only the *first* matching rule is applied
+    access_control:
+        - { path: ^/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/, roles: ROLE_MIGRATION_OFFICER }
+
+when@test:
+    security:
+        password_hashers:
+            # Password hashers are resource-intensive by design to ensure security.
+            # In tests, it's safe to reduce their cost to improve performance.
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4 # Lowest possible value for bcrypt
+                time_cost: 3 # Lowest possible value for argon
+                memory_cost: 10 # Lowest possible value for argon

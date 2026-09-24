@@ -1,0 +1,71 @@
+<?php
+
+namespace App\Tests\Controller;
+
+use App\Tests\AppTestCase;
+
+final class MigrationControllerTest extends AppTestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->loginAs('officer');
+    }
+
+    public function testDashboardShowsLiveCounts(): void
+    {
+        $this->client->request('GET', '/');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Migration overview');
+        self::assertSelectorTextContains('header', 'officer');
+        self::assertSelectorTextSame('.metrics article:first-child strong', '5');
+        self::assertSelectorTextContains('.recent', 'No batches yet.');
+    }
+
+    public function testCardDirectoryShowsOnlyMaskedCardNumbers(): void
+    {
+        $this->client->request('GET', '/cards');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('tbody', '5412 86•• •••• 8821');
+        self::assertSelectorTextContains('.pagination', 'Showing 1–5 of 5 records');
+        self::assertStringNotContainsString('5412 8600', $this->client->getResponse()->getContent() ?: '');
+    }
+
+    public function testCardDirectoryFiltersByStatusDescription(): void
+    {
+        $crawler = $this->client->request('GET', '/cards');
+        self::assertSame(['All statuses', 'Active (4)', 'Restricted (1)'], $crawler->filter('select[name="status"] option')->each(static fn ($o) => $o->text()));
+
+        $crawler = $this->client->request('GET', '/cards?status=Restricted');
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('tbody tr'));
+        self::assertSelectorTextContains('tbody', 'Carlo M. Navarro');
+        self::assertSelectorTextContains('.pagination', 'Showing 1–1 of 1 records');
+        self::assertSame('Restricted', $crawler->filter('select[name="status"] option[selected]')->attr('value'));
+        self::assertSame('Restricted', $crawler->filter('form[action$="/exports"] input[name="status"]')->attr('value'), 'the export button exports the filtered cards');
+
+        $this->client->request('GET', '/cards?status=Closed');
+        self::assertSelectorTextContains('tbody', 'No records with status “Closed”.');
+    }
+
+    public function testAccountDirectoryFiltersByStatusDescription(): void
+    {
+        $crawler = $this->client->request('GET', '/accounts?status=Active');
+        self::assertResponseIsSuccessful();
+        self::assertCount(4, $crawler->filter('tbody tr'));
+        self::assertSelectorTextNotContains('tbody', 'Carlo M. Navarro');
+    }
+
+    public function testAccountDirectoryIsAvailable(): void
+    {
+        $this->client->request('GET', '/accounts');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('tbody', '001-004568921');
+    }
+
+    public function testNonGetRequestsAreRejected(): void
+    {
+        $this->client->request('POST', '/cards');
+        self::assertResponseStatusCodeSame(405);
+    }
+}

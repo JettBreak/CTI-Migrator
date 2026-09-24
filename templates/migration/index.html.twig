@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Account replacement · Coreware{% endblock %}
+{% block crumb %}Account replacement{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">MIGRATION WORKSPACE</span>
+        <h1>Replace linked accounts</h1>
+        <p>Replace account numbers in core. Every card linked to an account keeps its link and follows the new number; the old number is kept in the link as <code>&lt;OLDACCTNO&gt;</code>.</p>
+    </div>
+    {{ include('export/_button.html.twig', {label: '⇩ Download current records'}) }}
+</section>
+
+<section class="panel pad">
+    <b>Upload a replacement mapping file</b>
+    <p class="muted">CSV with <code>current_account</code> and <code>new_account</code> columns (<code>card_ref</code> optional, cross-checked if present). Start from the download above (or filter the Card directory by status and export from there) and fill in <code>new_account</code>; an account linked to several cards appears once per card and needs the same new number on each row. Up to 5,000 rows.</p>
+    {{ form_start(form, {attr: {class: 'upload-form'}}) }}
+        {{ form_widget(form.file) }}
+        <button type="submit" class="button primary small">Upload and validate</button>
+    {{ form_end(form) }}
+    {% if form.file.vars.errors|length %}
+        <ul class="form-errors">{% for error in form.file.vars.errors %}<li>{{ error.message }}</li>{% endfor %}</ul>
+    {% endif %}
+</section>
+
+<section class="panel table-panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Batch</th><th>File</th><th>Rows</th><th>Uploaded</th><th>Reviewed</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for batch in batches %}
+                <tr>
+                    <td><a href="{{ path('app_batch_show', {id: batch.id}) }}"><b>#{{ batch.id }}</b></a></td>
+                    <td>{{ batch.filename }}</td>
+                    <td>{{ batch.rows|length }}{% if batch.invalidRowCount %} <small class="muted">({{ batch.invalidRowCount }} to correct)</small>{% endif %}</td>
+                    <td>{{ batch.uploadedAt|date('M j, Y H:i') }}<small class="block muted">{{ batch.uploadedBy }}</small></td>
+                    <td>{% if batch.reviewedBy %}{{ batch.reviewedAt|date('M j, Y H:i') }}<small class="block muted">{{ batch.reviewedBy }}</small>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td><span class="tag {{ batch.status.tone }}">{{ batch.status.label }}</span></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="muted">No batches uploaded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
