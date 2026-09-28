@@ -9,7 +9,9 @@ when@dev:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
-                channels: ["!event"]
+                # Not every SQL statement: a batch writes thousands per chunk (dev.log reached 800 MB) and the
+                # disk writes slow it down. The web profiler still lists each request's queries.
+                channels: ["!event", "!doctrine"]
             console:
                 type: console
                 process_psr_3_messages: false

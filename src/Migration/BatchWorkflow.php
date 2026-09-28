@@ -12,7 +12,6 @@ use App\Repository\MigrationRowRepository;
 use App\Service\BatchReportExport;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Lock\LockFactory;
@@ -44,8 +43,7 @@ final class BatchWorkflow
         #[Autowire('%app.batch.sync_max_rows%')] private readonly int $syncMaxRows,
         #[Autowire('%app.batch.apply_chunk%')] private readonly int $applyChunk,
         #[Autowire('%app.batch.upload_dir%')] private readonly string $uploadDir,
-        /** Debug mode only: Doctrine's log of every query, which would otherwise grow with the batch. */
-        #[Autowire(service: 'doctrine.debug_data_holder')] private readonly ?DebugDataHolder $queryLog = null,
+        private readonly ChunkMemory $memory,
     ) {
     }
 
@@ -230,7 +228,7 @@ final class BatchWorkflow
             } finally {
                 $lock->release();
             }
-            $this->queryLog?->reset();
+            $this->memory->release();
         }
 
         $this->em->refresh($batch);

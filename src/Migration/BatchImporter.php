@@ -6,8 +6,6 @@ use App\Entity\MigrationBatch;
 use App\Entity\MigrationRow;
 use App\Repository\MigrationRowRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Streams an uploaded mapping file into a batch a chunk at a time: validate the chunk against core,
@@ -22,8 +20,7 @@ final class BatchImporter
         private readonly MappingFileParser $parser,
         private readonly MappingValidator $validator,
         private readonly MigrationRowRepository $rows,
-        /** Debug mode only: Doctrine's log of every query, which would otherwise grow with the file. */
-        #[Autowire(service: 'doctrine.debug_data_holder')] private readonly ?DebugDataHolder $queryLog = null,
+        private readonly ChunkMemory $memory,
     ) {
     }
 
@@ -71,6 +68,6 @@ final class BatchImporter
             $batch->recordValidated(count($chunk), count(array_filter($chunk, static fn (MigrationRow $r) => !$r->isValid())));
             $this->em->flush();
         });
-        $this->queryLog?->reset();
+        $this->memory->release();
     }
 }
