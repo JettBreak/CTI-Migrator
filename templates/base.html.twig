@@ -20,6 +20,7 @@
             }
         }
     </script>
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
     {% block importmap %}{{ importmap('app') }}{% endblock %}
     {# Same-page refreshes (e.g. auto-refresh) update the page in place and keep the scroll position. #}
     <meta name="turbo-refresh-method" content="morph">
@@ -30,24 +31,41 @@
 <aside class="sidebar shadow-2xl shadow-slate-900/20">
     {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
     <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
-    <a class="brand" href="{{ path('app_dashboard') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>migration control</small></span></a>
+    {% set route = app.request.attributes.get('_route') %}
+    <a class="brand" href="{{ path('app_home') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>migration control</small></span></a>
     <nav>
-        <a href="{{ path('app_dashboard') }}" class="{{ app.request.attributes.get('_route') == 'app_dashboard' ? 'active' }}"><span>▦</span> Overview</a>
+        {% if is_granted('ROLE_MIGRATION_OFFICER') %}
+        <a href="{{ path('app_dashboard') }}" class="{{ route == 'app_dashboard' ? 'active' }}"><span>▦</span> Overview</a>
         <p>DATA MANAGEMENT</p>
-        <a href="{{ path('app_cards') }}" class="{{ app.request.attributes.get('_route') == 'app_cards' ? 'active' }}"><span>▣</span> Card directory</a>
-        <a href="{{ path('app_accounts') }}" class="{{ app.request.attributes.get('_route') == 'app_accounts' ? 'active' }}"><span>◫</span> Account directory</a>
+        <a href="{{ path('app_cards') }}" class="{{ route == 'app_cards' ? 'active' }}"><span>▣</span> Card directory</a>
+        <a href="{{ path('app_accounts') }}" class="{{ route == 'app_accounts' ? 'active' }}"><span>◫</span> Account directory</a>
         <p>MIGRATION</p>
-        <a href="{{ path('app_migration') }}" class="{{ app.request.attributes.get('_route') matches '/^app_(migration|batch_)/' ? 'active' }}"><span>⇄</span> Account replacement</a>
-        <a href="{{ path('app_exports') }}" class="{{ app.request.attributes.get('_route') starts with 'app_export' ? 'active' }}"><span>⇩</span> Exports</a>
+        <a href="{{ path('app_migration') }}" class="{{ route matches '/^app_(migration|batch_)/' ? 'active' }}"><span>⇄</span> Account replacement</a>
+        <a href="{{ path('app_exports') }}" class="{{ route starts with 'app_export' ? 'active' }}"><span>⇩</span> Exports</a>
         <p>OPERATIONS</p>
-        <a href="{{ path('app_worker') }}" class="{{ app.request.attributes.get('_route') starts with 'app_worker' ? 'active' }}"><span>⚙</span> Background worker</a>
+        <a href="{{ path('app_worker') }}" class="{{ route starts with 'app_worker' ? 'active' }}"><span>⚙</span> Background worker</a>
+        {% endif %}
+        {% if is_granted('ROLE_USER_ADMIN') %}
+        <p>ADMINISTRATION</p>
+        <a href="{{ path('app_admin_users') }}" class="{{ route matches '/^app_admin_(users?|user_new)$/' ? 'active' }}"><span>☺</span> Users</a>
+        <a href="{{ path('app_admin_audit') }}" class="{{ route == 'app_admin_audit' ? 'active' }}"><span>☰</span> Account audit trail</a>
+        {% endif %}
+        {% if app.user %}
+        <p>MY ACCOUNT</p>
+        <a href="{{ path('app_account_password') }}" class="{{ route == 'app_account_password' ? 'active' }}"><span>⚿</span> Change password</a>
+        {% endif %}
     </nav>
     <div class="sidebar-footer"><span class="live-dot"></span> Secure environment<br><small>v1.0</small></div>
 </aside>
 <main>
     <header class="bg-white">
         <div class="crumb">Operations <b>/</b> {% block crumb %}Overview{% endblock %}</div>
-        {% if app.user %}<div class="profile"><div class="avatar">{{ app.user.userIdentifier|slice(0, 2)|upper }}</div><div><b>{{ app.user.userIdentifier }}</b><small>{{ is_granted('ROLE_MIGRATION_APPROVER') ? 'Migration Approver' : 'Migration Officer' }} · <a href="{{ logout_path() }}" data-turbo="false">Sign out</a></small></div></div>{% endif %}
+        {% if app.user %}
+            {% set me = app.user %}
+            {# The sign-in before this one, so the user can spot one that was not theirs. #}
+            {% set previous = me.previousLoginAt ? 'Previous sign-in ' ~ me.previousLoginAt|date('M j, Y H:i') ~ (me.previousLoginIp ? ' from ' ~ me.previousLoginIp : '') : 'First sign-in' %}
+            <div class="profile" title="{{ previous }}"><div class="avatar">{{ me.displayName|split(' ')|map(p => p|first)|join|slice(0, 2)|upper }}</div><div><b>{{ me.displayName }}</b><small>{{ me.username }} · {{ me.role.label }} · <a href="{{ logout_path() }}" data-turbo="false">Sign out</a></small><small class="profile-last">{{ previous }}</small></div></div>
+        {% endif %}
     </header>
     {% for type, messages in app.flashes(['success', 'error']) %}{% for message in messages %}<div class="flash {{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
     {% block body %}{% endblock %}

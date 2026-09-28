@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users · Coreware{% endblock %}
+{% block crumb %}Users{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">ADMINISTRATION</span>
+        <h1>Users</h1>
+        <p>Every change to an account is requested by one administrator and approved by another. Accounts are never deleted, only disabled.</p>
+    </div>
+    <a class="button primary" href="{{ path('app_admin_user_new') }}">+ New account</a>
+</section>
+
+{{ include('admin/_credential.html.twig') }}
+
+{% if pending %}
+<section class="panel pad">
+    <span class="eyebrow">WAITING FOR APPROVAL · {{ pending|length }}</span>
+    {% for change in pending %}
+        <div class="request-row">
+            <div>
+                <b>{{ change.describe }}</b> for {% if change.type.value == 'create' %}<b>{{ change.targetUsername }}</b>{% else %}<a href="{{ path('app_admin_user', {username: change.targetUsername}) }}"><b>{{ change.targetUsername }}</b></a>{% endif %}{% if change.displayName %} ({{ change.displayName }}){% endif %}
+                <small class="block muted">Requested by {{ change.requestedBy }} on {{ change.requestedAt|date('M j, Y H:i') }} · {{ change.reason }}</small>
+            </div>
+            {{ include('admin/_request_actions.html.twig') }}
+        </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel table-panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Password changed</th><th>Created</th></tr></thead>
+            <tbody>
+            {% for user in users %}
+                <tr>
+                    <td><a href="{{ path('app_admin_user', {username: user.username}) }}"><b>{{ user.username }}</b></a><small class="block muted">{{ user.displayName }}</small></td>
+                    <td>{{ user.role.label }}</td>
+                    <td>{{ include('admin/_status.html.twig') }}</td>
+                    <td>{% if user.lastLoginAt %}{{ user.lastLoginAt|date('M j, Y H:i') }}<small class="block muted">{{ user.lastLoginIp }}</small>{% else %}<span class="muted">Never</span>{% endif %}</td>
+                    <td>{{ user.passwordChangedAt|date('M j, Y') }}</td>
+                    <td>{{ user.createdAt|date('M j, Y') }}<small class="block muted">{{ user.createdBy }}</small></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="muted">No accounts yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

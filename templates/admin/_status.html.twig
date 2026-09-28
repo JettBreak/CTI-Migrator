@@ -1,0 +1,7 @@
+{# Status tags of an account. #}
+{% if not user.active %}<span class="tag danger">Disabled</span>
+{% elseif user.locked %}<span class="tag danger">Locked</span>
+{% elseif policy.dormant(user) %}<span class="tag warning">Dormant</span>
+{% else %}<span class="tag success">Active</span>{% endif %}
+{% if user.active and user.mustChangePassword %}<span class="tag neutral">Temporary password</span>
+{% elseif user.active and policy.passwordExpired(user) %}<span class="tag warning">Password expired</span>{% endif %}

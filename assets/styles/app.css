@@ -122,3 +122,24 @@ form.search{margin:0;width:min(420px,100%)}form.search input{width:calc(100% - 2
 /* Page headings: the Tailwind CDN injects its reset (h1,h2{font-size:inherit;font-weight:inherit}) after this file, so scope these to win regardless of order */
 main h1{font-size:31px;letter-spacing:-1.2px;font-weight:700}
 main h2{font-size:18px;font-weight:700}
+/* User administration and account pages */
+.profile small.profile-last{font-size:10.5px;opacity:.8}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}.tag-row .tag{margin-left:0}
+td .tag+.tag{margin-left:4px}
+.request-row{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 0;border-top:1px solid var(--line)}
+.request-row:first-of-type{border-top:0}.request-row .review-actions{margin-top:0}
+.admin-actions{display:grid;gap:12px;margin-top:14px}
+.admin-actions form{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px;border:1px solid var(--line);border-radius:8px;margin:0}
+.admin-actions form>b{min-width:130px}.admin-actions form small{flex:1 1 220px}
+.admin-actions textarea,.admin-actions select{font:inherit;border:1px solid #ccd5e3;border-radius:7px;padding:9px 10px;background:#fff}
+.admin-actions textarea{flex:1 1 260px;height:40px;min-height:40px;resize:vertical}
+.admin-actions .button{margin-left:auto}.button.danger{color:var(--red);border-color:#f3c3c9}
+.stack-form{display:grid;gap:16px;max-width:520px}
+.stack-form .field{display:grid;gap:6px}.stack-form label{font-weight:600;font-size:13px}
+.stack-form input,.stack-form select,.stack-form textarea{font:inherit;border:1px solid #ccd5e3;border-radius:7px;padding:10px 12px;background:#fff}
+.stack-form input:focus,.stack-form select:focus,.stack-form textarea:focus,.admin-actions textarea:focus,.admin-actions select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px #3068db26}
+.stack-form .form-errors{margin:0}
+.stack-form-actions{display:flex;gap:10px}.stack-form-actions .button{margin-left:0}
+.credential{border-color:#f6e2bb;background:#fffaf0}
+.credential-value{display:inline-block;margin-top:6px;padding:10px 14px;border-radius:7px;background:var(--navy);color:#fff;font-size:18px;letter-spacing:1px;user-select:all}
+.page-notice{margin:0 46px 22px;border-radius:10px;border:1px solid #f6e2bb}

@@ -1,0 +1,18 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Account audit trail · Coreware{% endblock %}
+{% block crumb %}Account audit trail{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">ADMINISTRATION</span>
+        <h1>Account audit trail</h1>
+        <p>Sign-ins (including failed ones), sign-outs, expired sessions, password changes and every account change, newest first. Failed sign-ins show the username that was typed.</p>
+    </div>
+</section>
+
+<section class="panel table-panel">
+    {{ include('admin/_audit_table.html.twig') }}
+</section>
+{% endblock %}

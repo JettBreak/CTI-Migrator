@@ -3,21 +3,16 @@ security:
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
-    # Users live in config; password hashes come from env/secrets so none are committed.
-    # Generate a hash with: bin/console security:hash-password
+    # Accounts live in the app database (app_user), managed on the User administration pages
+    # (maker-checker between administrators) and with the app:user:* console commands.
     providers:
-        users_in_memory:
-            memory:
-                users:
-                    officer:
-                        password: '%env(MIGRATION_OFFICER_PASSWORD_HASH)%'
-                        roles: ['ROLE_MIGRATION_OFFICER']
-                    # Checker for maker-checker: approves/rejects batches uploaded by someone else.
-                    approver:
-                        password: '%env(MIGRATION_APPROVER_PASSWORD_HASH)%'
-                        roles: ['ROLE_MIGRATION_APPROVER']
+        app_users:
+            entity:
+                class: App\Entity\User
+                property: username
 
     role_hierarchy:
+        # Approvers see everything officers see; BatchVoter keeps them from maker actions.
         ROLE_MIGRATION_APPROVER: [ROLE_MIGRATION_OFFICER]
 
     firewalls:
@@ -27,12 +22,18 @@ security:
             security: false
         main:
             lazy: true
-            provider: users_in_memory
+            provider: app_users
+            user_checker: App\Security\UserChecker
             form_login:
                 login_path: app_login
                 check_path: app_login
-                default_target_path: app_dashboard
+                default_target_path: app_home
                 enable_csrf: true
+            # Slows down password guessing per username and IP; accounts also lock after
+            # app.security.max_failed_logins failures in a row (see LoginSubscriber).
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
             logout:
                 path: app_logout
                 target: app_login
@@ -41,6 +42,9 @@ security:
     # Note: Only the *first* matching rule is applied
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/account/, roles: IS_AUTHENTICATED_FULLY }
+        # User administrators manage accounts only; migration officers and approvers never do.
+        - { path: ^/admin/, roles: ROLE_USER_ADMIN }
         - { path: ^/, roles: ROLE_MIGRATION_OFFICER }
 
 when@test:
@@ -53,3 +57,8 @@ when@test:
                 cost: 4 # Lowest possible value for bcrypt
                 time_cost: 3 # Lowest possible value for argon
                 memory_cost: 10 # Lowest possible value for argon
+        firewalls:
+            main:
+                # High enough that the tests of the account lock are not stopped by throttling first.
+                login_throttling:
+                    max_attempts: 50

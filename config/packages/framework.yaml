@@ -3,7 +3,15 @@ framework:
     secret: '%env(APP_SECRET)%'
 
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    session:
+        # Session cookie only (gone when the browser closes), never sent to scripts or other sites.
+        cookie_lifetime: 0
+        cookie_secure: auto
+        cookie_httponly: true
+        cookie_samesite: strict
+        # Idle and maximum session length are enforced by App\Security\SessionGuard; this only lets
+        # PHP clean up session files a while after that.
+        gc_maxlifetime: 28800
 
     #esi: true
     #fragments: true

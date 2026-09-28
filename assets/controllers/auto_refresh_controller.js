@@ -44,6 +44,11 @@ export default class extends Controller {
     refresh() {
         // Only refresh the page this controller belongs to; never follow the user elsewhere.
         if (this.element.isConnected) {
+            // Marked as a background refresh: it must not count as activity, or an open page would
+            // keep the session from ever timing out (see App\Security\SessionGuard).
+            document.addEventListener('turbo:before-fetch-request', (event) => {
+                event.detail.fetchOptions.headers['X-Background-Refresh'] = '1';
+            }, { once: true });
             Turbo.visit(window.location.href, { action: 'replace' });
         }
     }

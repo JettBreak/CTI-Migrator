@@ -3,6 +3,7 @@
 namespace App;
 
 use App\Message\CleanupExports;
+use App\Message\DisableDormantUsers;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule as SymfonySchedule;
@@ -28,6 +29,8 @@ class Schedule implements ScheduleProviderInterface
 
             // Delete export files past their retention (see app.export.retention).
             ->add(RecurringMessage::every('1 hour', new CleanupExports()))
+            // Disable accounts unused for app.security.dormant_after.
+            ->add(RecurringMessage::every('1 hour', new DisableDormantUsers()))
         ;
     }
 }

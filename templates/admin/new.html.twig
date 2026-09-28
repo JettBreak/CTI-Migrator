@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New account · Coreware{% endblock %}
+{% block crumb %}Users <b>/</b> New account{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">ADMINISTRATION</span>
+        <h1>Request a new account</h1>
+        <p>Another administrator has to approve the request. They then receive a temporary password for the new user, who must change it when they first sign in.</p>
+    </div>
+</section>
+
+<section class="panel pad">
+    {{ form_start(form, {attr: {class: 'stack-form', autocomplete: 'off', novalidate: 'novalidate'}}) }}
+        {{ form_errors(form) }}
+        {% for field in [form.username, form.displayName, form.role, form.reason] %}
+            <div class="field">
+                {{ form_label(field) }}
+                {{ form_widget(field) }}
+                {% if field.vars.help %}<small class="muted">{{ field.vars.help }}</small>{% endif %}
+                {% if field.vars.errors|length %}<ul class="form-errors">{% for error in field.vars.errors %}<li>{{ error.message }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+        {% endfor %}
+        <div class="stack-form-actions">
+            <button type="submit" class="button primary small">Request account</button>
+            <a class="button outline small" href="{{ path('app_admin_users') }}">Cancel</a>
+        </div>
+    {{ form_end(form, {render_rest: true}) }}
+</section>
+{% endblock %}

@@ -1,0 +1,19 @@
+<div class="table-wrap">
+    <table>
+        <thead><tr><th>When</th><th>Action</th><th>Account</th><th>By</th><th>Details</th><th>From</th></tr></thead>
+        <tbody>
+        {% for entry in entries %}
+            <tr>
+                <td>{{ entry.createdAt|date('M j, Y H:i:s') }}</td>
+                <td><span class="tag {{ entry.action in ['login_failed', 'login_throttled', 'locked', 'disabled', 'change_rejected'] ? 'danger' : (entry.action in ['session_expired', 'change_requested', 'password_reset'] ? 'warning' : 'neutral') }}">{{ entry.action|replace({'_': ' '})|capitalize }}</span></td>
+                <td>{{ entry.target ?? '—' }}</td>
+                <td>{{ entry.actor }}</td>
+                <td>{{ entry.details }}</td>
+                <td><span title="{{ entry.userAgent }}">{{ entry.ip ?? '—' }}</span></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="muted">Nothing recorded yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

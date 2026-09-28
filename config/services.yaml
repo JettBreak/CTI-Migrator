@@ -23,6 +23,13 @@ parameters:
     app.batch.upload_dir: '%kernel.project_dir%/var/uploads'
     # Largest mapping file accepted. PHP's upload_max_filesize and post_max_size must allow it too.
     app.batch.upload_max_size: '200M'
+    # Account safeguards (see App\Security\AccountPolicy).
+    app.security.max_failed_logins: 5
+    app.security.password_max_age: '90 days'
+    app.security.password_history: 5
+    app.security.idle_timeout: 900       # seconds without activity before the session ends
+    app.security.session_lifetime: 28800 # seconds after signing in before the session ends
+    app.security.dormant_after: '90 days'
 
 services:
     # default configuration for services in *this* file

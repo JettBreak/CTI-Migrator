@@ -1,0 +1,119 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ user.username }} · Users · Coreware{% endblock %}
+{% block crumb %}Users <b>/</b> {{ user.username }}{% endblock %}
+
+{% set mine = user.username == app.user.userIdentifier %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">ADMINISTRATION · USER</span>
+        <h1>{{ user.displayName }}</h1>
+        <p><code>{{ user.username }}</code> · {{ user.role.label }}</p>
+    </div>
+    <div class="tag-row">{{ include('admin/_status.html.twig') }}</div>
+</section>
+
+{{ include('admin/_credential.html.twig') }}
+
+{% if pending %}
+<section class="panel pad">
+    <span class="eyebrow">WAITING FOR APPROVAL</span>
+    <b>{{ pending.describe }}</b>
+    <small class="block muted">Requested by {{ pending.requestedBy }} on {{ pending.requestedAt|date('M j, Y H:i') }} · {{ pending.reason }}</small>
+    {{ include('admin/_request_actions.html.twig', {change: pending}) }}
+</section>
+{% endif %}
+
+<section class="panel pad">
+    <dl class="facts">
+        <div><dt>Created</dt><dd>{{ user.createdAt|date('M j, Y H:i') }} by {{ user.createdBy }}</dd></div>
+        <div><dt>Last sign-in</dt><dd>{{ user.lastLoginAt ? user.lastLoginAt|date('M j, Y H:i') ~ (user.lastLoginIp ? ' from ' ~ user.lastLoginIp : '') : 'Never' }}</dd></div>
+        <div><dt>Password changed</dt><dd>{{ user.passwordChangedAt|date('M j, Y H:i') }}{{ user.mustChangePassword ? ' (temporary: must be changed at the next sign-in)' }}</dd></div>
+        <div><dt>Failed sign-ins in a row</dt><dd>{{ user.failedLoginCount }}{{ user.locked ? ' · locked since ' ~ user.lockedAt|date('M j, Y H:i') }}</dd></div>
+        {% if not user.active %}<div><dt>Disabled</dt><dd>{{ user.deactivatedAt ? user.deactivatedAt|date('M j, Y H:i') }} by {{ user.deactivatedBy }}</dd></div>{% endif %}
+    </dl>
+</section>
+
+<section class="panel pad">
+    <span class="eyebrow">CHANGE THIS ACCOUNT</span>
+    {% if mine %}
+        <p class="muted">You cannot change your own account; another administrator has to. Use <a href="{{ path('app_account_password') }}">Change password</a> for your password.</p>
+    {% elseif pending %}
+        <p class="muted">A change is already waiting for approval. Only one change per account can be pending.</p>
+    {% else %}
+        <p class="muted">Each change is a request: another administrator has to approve it before it takes effect. The reason is kept in the audit trail.</p>
+        <div class="admin-actions">
+            {% if user.locked %}
+                <form autocomplete="off" method="post" action="{{ path('app_admin_user_unlock', {username: user.username}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+                    <b>Unlock</b><small class="muted">Locked after too many failed sign-ins. Unlocking takes effect at once.</small>
+                    <button class="button primary small">Unlock now</button>
+                </form>
+            {% endif %}
+            {% if user.active %}
+                <form autocomplete="off" method="post" action="{{ path('app_admin_user_request', {username: user.username}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+                    <input type="hidden" name="type" value="change_role">
+                    <b>Change role</b>
+                    <select name="role" required aria-label="New role">
+                        {% for role in roles|filter(r => r != user.role) %}<option value="{{ role.value }}">{{ role.label }}</option>{% endfor %}
+                    </select>
+                    <textarea name="reason" rows="1" placeholder="Reason (required)" maxlength="1000" required></textarea>
+                    <button class="button outline small">Request role change</button>
+                </form>
+                <form autocomplete="off" method="post" action="{{ path('app_admin_user_request', {username: user.username}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+                    <input type="hidden" name="type" value="reset_password">
+                    <b>Reset password</b><small class="muted">Issues a temporary password, unlocks the account and signs it out everywhere.</small>
+                    <textarea name="reason" rows="1" placeholder="Reason (required)" maxlength="1000" required></textarea>
+                    <button class="button outline small">Request password reset</button>
+                </form>
+                <form autocomplete="off" method="post" action="{{ path('app_admin_user_request', {username: user.username}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+                    <input type="hidden" name="type" value="disable">
+                    <b>Disable</b><small class="muted">The person can no longer sign in; their name stays on everything they did.</small>
+                    <textarea name="reason" rows="1" placeholder="Reason (required)" maxlength="1000" required></textarea>
+                    <button class="button outline small danger">Request disabling</button>
+                </form>
+            {% else %}
+                <form autocomplete="off" method="post" action="{{ path('app_admin_user_request', {username: user.username}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+                    <input type="hidden" name="type" value="enable">
+                    <b>Enable</b><small class="muted">Lets the person sign in again with their current password.</small>
+                    <textarea name="reason" rows="1" placeholder="Reason (required)" maxlength="1000" required></textarea>
+                    <button class="button outline small">Request enabling</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+
+<section class="panel table-panel">
+    <div class="panel-title"><div><span class="eyebrow">CHANGE REQUESTS</span><h2>History</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Change</th><th>Requested</th><th>Reason</th><th>Decided</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for change in requests %}
+                <tr>
+                    <td>{{ change.describe }}</td>
+                    <td>{{ change.requestedAt|date('M j, Y H:i') }}<small class="block muted">{{ change.requestedBy }}</small></td>
+                    <td>{{ change.reason }}</td>
+                    <td>{% if change.reviewedBy %}{{ change.reviewedAt|date('M j, Y H:i') }}<small class="block muted">{{ change.reviewedBy }}{{ change.reviewNote ? ' · ' ~ change.reviewNote }}</small>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td><span class="tag {{ change.status.tone }}">{{ change.status.label }}</span></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5" class="muted">No change requests (accounts created on the server have none).</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel table-panel">
+    <div class="panel-title"><div><span class="eyebrow">AUDIT TRAIL</span><h2>Sign-ins and changes</h2></div></div>
+    {{ include('admin/_audit_table.html.twig', {entries: audit}) }}
+</section>
+{% endblock %}

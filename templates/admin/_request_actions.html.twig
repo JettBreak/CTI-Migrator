@@ -1,0 +1,25 @@
+{# Approve / reject (another administrator) or withdraw (the requester) a pending account change. #}
+<div class="review-actions">
+    {% if is_granted('USER_CHANGE_REVIEW', change) %}
+        <form autocomplete="off" method="post" action="{{ path('app_admin_request_approve', {id: change.id}) }}" data-controller="confirm" data-action="submit->confirm#ask"
+              data-confirm-title-value="Approve: {{ change.describe }}?"
+              data-confirm-message-value="This takes effect on “{{ change.targetUsername }}” at once. Requested by {{ change.requestedBy }}: {{ change.reason }}"
+              data-confirm-confirm-label-value="Approve">
+            <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+            <button class="button primary small">Approve</button>
+        </form>
+        <form autocomplete="off" method="post" action="{{ path('app_admin_request_reject', {id: change.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+            <textarea name="note" rows="1" placeholder="Reason for rejecting (optional)" maxlength="1000"></textarea>
+            <button class="button outline small">Reject</button>
+        </form>
+    {% elseif is_granted('USER_CHANGE_CANCEL', change) %}
+        <span class="muted">Waiting for another administrator.</span>
+        <form autocomplete="off" method="post" action="{{ path('app_admin_request_cancel', {id: change.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('user-admin') }}">
+            <button class="button outline small">Withdraw</button>
+        </form>
+    {% else %}
+        <span class="muted">Another administrator has to decide on this change.</span>
+    {% endif %}
+</div>
