@@ -119,3 +119,6 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .sidebar-footer{border-top-color:rgba(143,192,255,.18)}
 /* Directory search is a real form now; room for its longer hint */
 form.search{margin:0;width:min(420px,100%)}form.search input{width:calc(100% - 22px)}
+/* Page headings: the Tailwind CDN injects its reset (h1,h2{font-size:inherit;font-weight:inherit}) after this file, so scope these to win regardless of order */
+main h1{font-size:31px;letter-spacing:-1.2px;font-weight:700}
+main h2{font-size:18px;font-weight:700}
