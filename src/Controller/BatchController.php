@@ -103,12 +103,22 @@ final class BatchController extends AbstractController
         return $this->act($batch, fn (string $user) => $this->workflow->submit($batch, $user), 'Batch submitted for approval.');
     }
 
+    #[Route('/batches/{id}/submit-valid', name: 'app_batch_submit_valid', methods: ['POST'])]
+    #[IsCsrfTokenValid('batch-action')]
+    #[IsGranted(BatchVoter::SUBMIT_VALID, 'batch')]
+    public function submitValid(MigrationBatch $batch): Response
+    {
+        return $this->act($batch, fn (string $user) => $this->workflow->submitValidRows($batch, $user), 'Valid rows submitted for approval; the rows that need correction are skipped.');
+    }
+
     #[Route('/batches/{id}/approve', name: 'app_batch_approve', methods: ['POST'])]
     #[IsCsrfTokenValid('batch-action')]
     #[IsGranted(BatchVoter::REVIEW, 'batch')]
     public function approve(MigrationBatch $batch): Response
     {
-        return $this->act($batch, fn (string $user) => $this->workflow->approve($batch, $user), 'Batch approved; accounts replaced in core.');
+        $success = 'Batch approved; accounts replaced in core.'.($batch->skipsInvalidRows() ? ' Exports of the migrated rows and the rows to correct are queued on the Exports page.' : '');
+
+        return $this->act($batch, fn (string $user) => $this->workflow->approve($batch, $user), $success);
     }
 
     #[Route('/batches/{id}/resume', name: 'app_batch_resume', methods: ['POST'])]

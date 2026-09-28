@@ -99,3 +99,21 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* Export buttons are disabled while the worker generates another export (templates/export/_button.html.twig) */
 .inline-form button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+/* Full-page loading overlay (assets/controllers/page_loader_controller.js); the fail-safe hides it if that never runs */
+.page-loader{display:none;position:fixed;inset:0;z-index:1000;background:#050b1cb8}
+.page-loader .dino-loading{background:#0f2347f5;border-color:#24436f;box-shadow:0 18px 50px #000a,inset 0 1px 0 #ffffff14;color:#dbe7ff}
+.page-loader .dino-label{color:#9fb3d6}
+.page-loading .page-loader{display:block;animation:page-loader-failsafe 0s 8s forwards}
+@keyframes page-loader-failsafe{to{visibility:hidden}}
+/* Informational notice on a batch page, e.g. a batch that skips its rows to correct */
+.exception.notice{background:var(--amber-bg);border-top-color:#f6e2bb}
+.exception.notice>span{background:#fdebc8;color:var(--amber)}
+/* Opaque variant (login page): nothing of the page shows until it is ready, then it fades out */
+.page-loader.solid{display:block;background:#050b1c;opacity:0;visibility:hidden;transition:opacity .45s ease,visibility 0s linear .45s}
+.page-loading .page-loader.solid{opacity:1;visibility:visible;transition:none}
+/* Galaxy sidebar: nebula glow in CSS, stars and shooting stars on a canvas (assets/controllers/starfield_controller.js) */
+.sidebar{overflow:hidden;background:radial-gradient(ellipse 130% 35% at 0% 8%,rgba(124,77,219,.38),transparent 70%),radial-gradient(ellipse 140% 40% at 100% 62%,rgba(48,104,219,.42),transparent 70%),radial-gradient(ellipse 90% 25% at 15% 100%,rgba(245,154,35,.14),transparent 70%),linear-gradient(180deg,#0b1a3a,#050b1c)}
+.sidebar-stars{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.sidebar>:not(.sidebar-stars){position:relative;z-index:1}
+.sidebar nav a.active,.sidebar nav a:hover{background:rgba(48,104,219,.28);box-shadow:inset 0 0 0 1px rgba(143,192,255,.14)}
+.sidebar-footer{border-top-color:rgba(143,192,255,.18)}

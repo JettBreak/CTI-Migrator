@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="page-loading" data-controller="page-loader" data-page-loader-wait-for-value="login-globe:ready">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,23 +12,52 @@
     <script src="https://cdn.tailwindcss.com"></script>
     {{ importmap('app') }}
 </head>
-<body class="min-h-screen grid place-items-center bg-slate-50 px-4 antialiased">
-<main class="w-full max-w-sm" style="margin:0;min-height:0">
-    <div class="brand justify-center mb-8" style="color:var(--navy)"><img class="brand-logo large" src="{{ asset('images/logo-256.png') }}" alt="" width="56" height="56"><span>Coreware<small style="color:var(--muted)">migration control</small></span></div>
-    <form method="post" action="{{ path('app_login') }}" class="bg-white border border-slate-200 rounded-xl shadow-sm p-7 space-y-4">
-        <h1 class="text-2xl">Sign in</h1>
-        {% if error %}
-            <p class="text-sm rounded-md px-3 py-2" style="background:var(--red-bg);color:var(--red)">{{ error.messageKey|trans(error.messageData, 'security') }}</p>
-        {% endif %}
-        <label class="block text-sm font-semibold">Username
-            <input type="text" name="_username" value="{{ last_username }}" autocomplete="username" required autofocus class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal">
-        </label>
-        <label class="block text-sm font-semibold">Password
-            <input type="password" name="_password" autocomplete="current-password" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal">
-        </label>
-        <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
-        <button type="submit" class="button primary w-full">Sign in</button>
-    </form>
+<body class="login-page min-h-screen flex flex-col antialiased">
+<style>
+    .login-page{background:
+        radial-gradient(ellipse 45% 55% at 88% 18%,rgba(124,77,219,.45),transparent 70%),
+        radial-gradient(ellipse 40% 50% at 62% 88%,rgba(48,104,219,.45),transparent 70%),
+        radial-gradient(ellipse 30% 35% at 98% 85%,rgba(245,154,35,.18),transparent 70%),
+        radial-gradient(ellipse 35% 45% at 8% 20%,rgba(48,104,219,.28),transparent 70%),
+        radial-gradient(ellipse 30% 40% at 25% 95%,rgba(124,77,219,.25),transparent 70%),
+        radial-gradient(circle at 75% 50%,#0c1f45,#050b1c 80%) fixed}
+    /* Slightly translucent white bars: the stars and shooting stars show faintly through them */
+    .login-bar{position:relative;z-index:1;border:0;background:rgba(255,255,255,.88)}
+</style>
+<div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
+<canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="max-md:hidden fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
+<header class="login-bar h-16 flex items-center gap-3 px-6 sm:px-10">
+    <img src="{{ asset('images/logo-64.png') }}" alt="" width="28" height="28">
+    <span style="font:700 16px Manrope,sans-serif;color:var(--navy)">Coreware Technologies Inc.</span>
+    <span class="ml-auto inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1" style="background:var(--green-bg);color:var(--green);border:1px solid rgba(22,135,101,.2)"><span class="live-dot" style="margin:0"></span>Secure environment</span>
+</header>
+<main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 pt-12 pb-36" style="margin:0;min-height:0">
+    <div class="w-full max-w-3xl grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-10 md:gap-16 items-center">
+        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4">
+            <h1 class="text-3xl sm:text-4xl" style="color:#fff;line-height:1.15">Sign in to<br>migration control</h1>
+            <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
+            {% if error %}
+                <p class="text-sm rounded-md px-3 py-2" style="background:var(--red-bg);color:var(--red)">{{ error.messageKey|trans(error.messageData, 'security') }}</p>
+            {% endif %}
+            <label class="block text-sm font-semibold" style="color:#dbe7ff">Username
+                <input type="text" name="_username" value="{{ last_username }}" autocomplete="off" required autofocus class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
+            </label>
+            <label class="block text-sm font-semibold" style="color:#dbe7ff">Password
+                <input type="password" name="_password" autocomplete="off" required class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
+            </label>
+            <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
+            <button type="submit" class="button primary w-full" style="margin:8px 0 0">Sign in</button>
+        </form>
+        <ul class="max-md:hidden border-l pl-8 space-y-4 text-sm" style="border-color:#24436f;color:#b9c9e6">
+            <li class="flex items-center gap-3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8fc0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Maker-checker approval</li>
+            <li class="flex items-center gap-3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8fc0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>Full audit trail</li>
+            <li class="flex items-center gap-3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8fc0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.4A9.5 9.5 0 0 1 12 5c4 0 7.3 2.3 9 7-.6 1.5-1.4 2.8-2.4 3.8M6.6 6.6C4.9 7.8 3.7 9.6 3 12c1.7 4.7 5 7 9 7 1.6 0 3-.4 4.3-1"/></svg>Masked card data</li>
+        </ul>
+    </div>
 </main>
+<footer class="login-bar w-full px-6 sm:px-10 py-4 flex flex-col sm:flex-row gap-1 sm:items-center text-xs" style="color:#4a5872">
+    <span>© {{ 'now'|date('Y') }} Coreware Technologies Inc. All rights reserved.</span>
+    <span class="sm:ml-auto">Authorized personnel only · activity is logged · v1.0</span>
+</footer>
 </body>
 </html>

@@ -13,8 +13,8 @@
 </section>
 
 <section class="metrics">
-    <article><span class="metric-icon blue">▣</span><div><small>Total cards</small><strong>{{ core.cards|number_format }}</strong><em>in core</em></div></article>
-    <article><span class="metric-icon violet">◫</span><div><small>Cards with a linked account</small><strong>{{ core.linked|number_format }}</strong><em>{{ core.cards > 0 ? (core.linked / core.cards * 100)|number_format(1) ~ '% of cards' : '—' }}</em></div></article>
+    <article><span class="metric-icon blue">▣</span><div><small>Total cards</small><strong>{{ core.cards is null ? '—' : core.cards|number_format }}</strong><em>{{ core.cards is null ? 'core is busy; try again shortly' : 'in core' }}</em></div></article>
+    <article><span class="metric-icon violet">◫</span><div><small>Cards with a linked account</small><strong>{{ core.linked is null ? '—' : core.linked|number_format }}</strong><em>{{ core.cards is not null and core.cards > 0 ? (core.linked / core.cards * 100)|number_format(1) ~ '% of cards' : '—' }}</em></div></article>
     <article><span class="metric-icon green">✓</span><div><small>Accounts migrated</small><strong>{{ renamed|number_format }}</strong><em>replaced by completed batches</em></div></article>
     <article><span class="metric-icon amber">!</span><div><small>Needs attention</small><strong>{{ (awaiting + needs_correction)|number_format }}</strong><em>{{ awaiting }} awaiting approval · {{ needs_correction }} to correct</em></div></article>
 </section>

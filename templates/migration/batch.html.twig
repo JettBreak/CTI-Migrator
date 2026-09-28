@@ -45,7 +45,7 @@
     </dl>
 
     {% if batch.status.value == 'invalid' %}
-        <p class="exception"><span>!</span> Correct the rows marked below in your file and upload it again. This batch can't be submitted.</p>
+        <p class="exception"><span>!</span> {{ batch.invalidRowCount|number_format }} row(s) need correction. Correct them in your file and upload it again{% if batch.validRowCount > 0 %}, or proceed with the valid rows only: the rows that need correction are skipped{% endif %}.</p>
     {% elseif batch.status.value in ['failed', 'halted'] %}
         <p class="exception"><span>!</span> {{ batch.failureReason }}</p>
     {% elseif batch.status.value == 'rejected' and batch.reviewNote %}
@@ -53,10 +53,14 @@
     {% elseif batch.status.value == 'processing' %}
         <p class="exception"><span>!</span> If progress stops moving while the worker is on, check core and the logs before doing anything else with this batch.</p>
     {% endif %}
+    {% if batch.skipsInvalidRows %}
+        <p class="exception notice"><span>i</span> Valid rows only: {{ batch.invalidRowCount|number_format }} row(s) that need correction are skipped, together with the other rows of their accounts, and are not replaced.
+        {% if batch.status.value == 'completed' %}The migrated rows and the rows to correct are exported on the <a href="{{ path('app_exports') }}">Exports</a> page.{% else %}Once the replacement is done, two exports are queued on the Exports page: the migrated rows, and the rows to correct.{% endif %}</p>
+    {% endif %}
 
     <div class="review-actions">
         {% if is_granted('BATCH_SUBMIT', batch) %}
-            <form method="post" action="{{ path('app_batch_submit', {id: batch.id}) }}">
+            <form autocomplete="off" method="post" action="{{ path('app_batch_submit', {id: batch.id}) }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
                 <button class="button primary">Submit for approval <span>→</span></button>
             </form>
@@ -64,16 +68,27 @@
             <p class="muted">Only {{ batch.uploadedBy }} can submit this batch.</p>
         {% endif %}
 
+        {% if is_granted('BATCH_SUBMIT_VALID', batch) %}
+            <form autocomplete="off" method="post" action="{{ path('app_batch_submit_valid', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Proceed with the {{ batch.validRowCount|number_format }} valid row(s) only?"
+                  data-confirm-message-value="The {{ batch.invalidRowCount|number_format }} row(s) that need correction are skipped and not replaced; so are the other rows of their accounts, so that no account is left half-done. An approver still has to approve the rest. Once the replacement is done, two exports are queued on the Exports page: the migrated rows, and the rows to correct (in the upload format, to fix and upload again)."
+                  data-confirm-confirm-label-value="Proceed with valid rows">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <button class="button primary">Proceed with valid rows only <span>→</span></button>
+            </form>
+        {% endif %}
+
         {% if is_granted('BATCH_REVIEW', batch) %}
-            <form method="post" action="{{ path('app_batch_approve', {id: batch.id}) }}"
+            <form autocomplete="off" method="post" action="{{ path('app_batch_approve', {id: batch.id}) }}"
                   data-controller="confirm" data-action="submit->confirm#ask"
                   data-confirm-title-value="Approve and replace {{ batch.accountCount|number_format }} account(s)?"
-                  data-confirm-message-value="The account numbers are replaced in core now, and every linked card follows the new number. Accounts are replaced in chunks; if one chunk fails, the batch stops there and earlier chunks stay replaced."
+                  data-confirm-message-value="{% if batch.skipsInvalidRows %}Valid rows only: {{ batch.invalidRowCount|number_format }} row(s) that need correction are skipped. {% endif %}The account numbers are replaced in core now, and every linked card follows the new number. Accounts are replaced in chunks; if one chunk fails, the batch stops there and earlier chunks stay replaced.{% if batch.skipsInvalidRows %} Afterwards, exports of the migrated rows and the rows to correct are queued on the Exports page.{% endif %}"
                   data-confirm-confirm-label-value="Approve and replace">
                 <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
                 <button class="button primary">Approve and replace {{ batch.accountCount|number_format }} account(s) <span>→</span></button>
             </form>
-            <form method="post" action="{{ path('app_batch_reject', {id: batch.id}) }}"
+            <form autocomplete="off" method="post" action="{{ path('app_batch_reject', {id: batch.id}) }}"
                   data-controller="confirm" data-action="submit->confirm#ask"
                   data-confirm-title-value="Reject batch #{{ batch.id }}?"
                   data-confirm-message-value="Nothing is changed in core. {{ batch.uploadedBy }} will need to correct the file and upload it again."
@@ -88,7 +103,7 @@
         {% endif %}
 
         {% if is_granted('BATCH_RESUME', batch) %}
-            <form method="post" action="{{ path('app_batch_resume', {id: batch.id}) }}"
+            <form autocomplete="off" method="post" action="{{ path('app_batch_resume', {id: batch.id}) }}"
                   data-controller="confirm" data-action="submit->confirm#ask"
                   data-confirm-title-value="Resume and replace {{ (batch.accountCount - batch.appliedAccountCount)|number_format }} remaining account(s)?"
                   data-confirm-message-value="Every remaining row is checked against live core data again first. Accounts already replaced are not touched."

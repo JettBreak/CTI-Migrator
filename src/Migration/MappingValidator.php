@@ -107,7 +107,12 @@ final class MappingValidator
         if ([] === $candidates) {
             $errors[] = 'current_account not found in core.';
         } elseif (null === $account) {
-            $errors[] = 'current_account matches more than one core account record.';
+            // Not several cards on one account (that is allowed): separate account records share this number.
+            $errors[] = sprintf(
+                'current_account matches %d core account records (%s); fix the duplicate account number in core first.',
+                count($candidates),
+                implode(', ', array_map(static fn (CoreAccount $a) => sprintf('seq %d / customer %d / branch %d', $a->seq, $a->customerSeq, $a->branchSeq), $candidates)),
+            );
         }
         if ($newInUse) {
             $errors[] = 'new_account already exists in core.';

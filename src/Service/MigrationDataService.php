@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Migration\MaskedCard;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\ParameterType;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -13,6 +14,12 @@ final class MigrationDataService
 {
     /** The status shown for a prmaster row: its prstatus description, or "Status N" when none is defined. */
     private const STATUS_LABEL = "COALESCE(NULLIF(ps.description, ''), CONCAT('Status ', p.status))";
+    /**
+     * Optimizer hint for the whole-table dashboard counts: MySQL stops them after 20 s. They scan all of
+     * prmaster/prlinkxx and can crawl while a batch is writing to core; the dev server handles one
+     * request at a time, so an unbounded count would hold up every page.
+     */
+    private const COUNT_TIME_LIMIT = '/*+ MAX_EXECUTION_TIME(20000) */';
 
     /** prmaster rows of one prtype with their status label; %s receives extra WHERE conditions. */
     private const RECORDS_SQL = <<<'SQL'
@@ -170,9 +177,10 @@ final class MigrationDataService
      *
      * @param 'CARD'|'ACCT' $prtype
      *
-     * @return array<string, int> status description => record count, alphabetical
+     * @return array<string, int>|null status description => record count, alphabetical; null when core took
+     *                                 too long to count (see COUNT_TIME_LIMIT)
      */
-    public function statusCounts(string $prtype): array
+    public function statusCounts(string $prtype): ?array
     {
         if ('test' === $this->environment) {
             $counts = array_count_values(array_column('CARD' === $prtype ? $this->fixtureCards() : $this->fixtureAccounts(), 'status'));
@@ -181,32 +189,62 @@ final class MigrationDataService
             return $counts;
         }
 
-        return $this->cache->get('core_status_counts_'.$prtype, function (ItemInterface $item) use ($prtype): array {
+        return $this->withinTimeLimit(fn () => $this->cache->get('core_status_counts_'.$prtype, function (ItemInterface $item) use ($prtype): array {
             $item->expiresAfter(600);
             [$from, $params] = $this->records($prtype, null);
 
             return array_map('intval', $this->coreappConnection->fetchAllKeyValue(
-                'SELECT '.self::STATUS_LABEL.' AS label, COUNT(*) '.$from.' GROUP BY label ORDER BY label',
+                'SELECT '.self::COUNT_TIME_LIMIT.' '.self::STATUS_LABEL.' AS label, COUNT(*) '.$from.' GROUP BY label ORDER BY label',
                 $params,
             ));
-        });
+        }));
     }
 
-    /** @return array{cards: int, linked: int} */
+    /**
+     * Cards in core and how many have a linked account, cached for 10 minutes like the status counts.
+     *
+     * @return array{cards: ?int, linked: ?int} nulls when core took too long to count (see COUNT_TIME_LIMIT)
+     */
     public function cardStats(): array
     {
         if ('test' === $this->environment) {
             return ['cards' => count($this->fixtureCards()), 'linked' => count($this->fixtureCards())];
         }
 
-        $stats = $this->coreappConnection->fetchAssociative(<<<'SQL'
-            SELECT COUNT(*) AS cards,
-                   SUM(EXISTS(SELECT 1 FROM prlinkxx l WHERE l.prseqno = c.prseqno AND l.prtype = 'ACCT')) AS linked
-            FROM prmaster c
-            WHERE c.prtype = 'CARD'
-            SQL);
+        return $this->withinTimeLimit(fn () => $this->cache->get('core_card_stats', function (ItemInterface $item): array {
+                $item->expiresAfter(600);
+                $stats = $this->coreappConnection->fetchAssociative('SELECT '.self::COUNT_TIME_LIMIT.<<<'SQL'
+                     COUNT(*) AS cards,
+                           SUM(EXISTS(SELECT 1 FROM prlinkxx l WHERE l.prseqno = c.prseqno AND l.prtype = 'ACCT')) AS linked
+                    FROM prmaster c
+                    WHERE c.prtype = 'CARD'
+                    SQL);
 
-        return ['cards' => (int) $stats['cards'], 'linked' => (int) $stats['linked']];
+                return ['cards' => (int) $stats['cards'], 'linked' => (int) $stats['linked']];
+            })) ?? ['cards' => null, 'linked' => null];
+    }
+
+    /**
+     * Runs a cached whole-table count; null if MySQL stopped it at COUNT_TIME_LIMIT. A timed-out count
+     * is not cached, so the next visit tries again.
+     *
+     * @template T
+     *
+     * @param callable(): T $count
+     *
+     * @return T|null
+     */
+    private function withinTimeLimit(callable $count): mixed
+    {
+        try {
+            return $count();
+        } catch (DriverException $e) {
+            if (3024 !== $e->getCode()) { // ER_QUERY_TIMEOUT: MAX_EXECUTION_TIME exceeded
+                throw $e;
+            }
+
+            return null;
+        }
     }
 
     /**

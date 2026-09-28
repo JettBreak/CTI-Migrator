@@ -18,12 +18,13 @@
 <section class="panel pad">
     <b>Upload a replacement mapping file</b>
     <p class="muted">CSV with <code>current_account</code> and <code>new_account</code> columns (<code>card_ref</code> optional, cross-checked if present). Start from the download above (or filter the Card directory by status and export from there) and fill in <code>new_account</code>; an account linked to several cards appears once per card and needs the same new number on each row. Files of any length up to {{ upload_max_size }}; files over {{ sync_max_rows|number_format }} rows are validated in the background and replaced in chunks once approved.</p>
-    {{ form_start(form, {attr: {class: 'upload-form'}}) }}
+    {{ form_start(form, {attr: {class: 'upload-form', autocomplete: 'off'}}) }}
         {{ form_widget(form.file) }}
         <button type="submit" class="button primary small">Upload and validate</button>
     {{ form_end(form) }}
-    {% if form.file.vars.errors|length %}
-        <ul class="form-errors">{% for error in form.file.vars.errors %}<li>{{ error.message }}</li>{% endfor %}</ul>
+    {# Form-level errors too: a request over PHP's post_max_size, or an expired CSRF token, is reported on the form itself. #}
+    {% if form.vars.errors|length or form.file.vars.errors|length %}
+        <ul class="form-errors">{% for errors in [form.vars.errors, form.file.vars.errors] %}{% for error in errors %}<li>{{ error.message }}</li>{% endfor %}{% endfor %}</ul>
     {% endif %}
 </section>
 {% endif %}

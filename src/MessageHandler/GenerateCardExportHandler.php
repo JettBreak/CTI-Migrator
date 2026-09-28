@@ -5,13 +5,15 @@ namespace App\MessageHandler;
 use App\Enum\ExportState;
 use App\Message\GenerateCardExport;
 use App\Repository\ExportJobRepository;
+use App\Service\BatchReportExport;
 use App\Service\CardExport;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Writes a large card export to disk chunk by chunk, recording progress on the job as it goes.
+ * Writes an export job's file to disk chunk by chunk, recording progress on the job as it goes: a large
+ * card export, or one of the reports queued when a batch that skipped rows to correct completes.
  */
 #[AsMessageHandler]
 final class GenerateCardExportHandler
@@ -20,6 +22,7 @@ final class GenerateCardExportHandler
         private readonly ExportJobRepository $jobs,
         private readonly EntityManagerInterface $em,
         private readonly CardExport $export,
+        private readonly BatchReportExport $batchReports,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -35,13 +38,18 @@ final class GenerateCardExportHandler
         $this->em->flush();
 
         try {
-            $this->export->writeFile($job->getStatusFilter(), $this->export->pathFor($job), function (int $cards, int $rows) use ($job): void {
+            $onChunk = function (int $cards, int $rows) use ($job): void {
                 $job->addProgress($cards, $rows);
                 $this->em->flush();
-            });
+            };
+            if ($job->getKind()->isBatchReport()) {
+                $this->batchReports->writeFile($job, $this->export->pathFor($job), $onChunk);
+            } else {
+                $this->export->writeFile($job->getStatusFilter(), $this->export->pathFor($job), $onChunk);
+            }
             $job->complete();
         } catch (\Throwable $e) {
-            $this->logger->error('Card export #{id} failed: {message}', ['id' => $job->getId(), 'message' => $e->getMessage(), 'exception' => $e]);
+            $this->logger->error('Export #{id} failed: {message}', ['id' => $job->getId(), 'message' => $e->getMessage(), 'exception' => $e]);
             $job->fail('The export could not be generated. Details are in the application log.');
         }
 

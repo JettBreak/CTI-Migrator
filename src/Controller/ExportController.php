@@ -64,16 +64,19 @@ final class ExportController extends AbstractController
         $status = null === $status ? null : mb_substr($status, 0, 100);
         $estimate = $this->export->estimate($status);
 
-        if ($this->export->fitsInRequest($estimate)) {
+        // Unknown size (core too busy to count): prepare it in the background rather than risk a huge download here.
+        if (null !== $estimate && $this->export->fitsInRequest($estimate)) {
             return $this->export->response($status);
         }
 
-        $job = new ExportJob($this->getUser()->getUserIdentifier(), $status, $estimate);
+        $job = new ExportJob($this->getUser()->getUserIdentifier(), $status, $estimate ?? 0);
         $em->persist($job);
         $em->flush();
         $bus->dispatch(new GenerateCardExport($job->getId()));
 
-        $this->addFlash('success', sprintf('Export #%d of about %s cards is being prepared. Download it here when it is ready.', $job->getId(), number_format($estimate)));
+        $this->addFlash('success', null === $estimate
+            ? sprintf('Export #%d is being prepared. Download it here when it is ready.', $job->getId())
+            : sprintf('Export #%d of about %s cards is being prepared. Download it here when it is ready.', $job->getId(), number_format($estimate)));
         if (!$worker->isRunning() && ExportState::Queued === $job->getState()) {
             $this->addFlash('error', 'The background worker is off, so this export will wait until someone turns it on (Background worker page).');
         }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="page-loading" data-controller="page-loader">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,7 +26,10 @@
     <meta name="turbo-refresh-scroll" content="preserve">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased {% block page_class %}{% endblock %}">
+<div class="page-loader">{% include '_dino_loading.html.twig' with {active: true} %}</div>
 <aside class="sidebar shadow-2xl shadow-slate-900/20">
+    {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
+    <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
     <a class="brand" href="{{ path('app_dashboard') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>migration control</small></span></a>
     <nav>
         <a href="{{ path('app_dashboard') }}" class="{{ app.request.attributes.get('_route') == 'app_dashboard' ? 'active' }}"><span>▦</span> Overview</a>

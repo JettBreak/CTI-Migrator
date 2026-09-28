@@ -108,7 +108,7 @@ final class ExportCleaner
                 continue;
             }
 
-            if (preg_match('/^cards-(\d+)\.csv$/', $name, $m)) {
+            if (preg_match('/^(?:cards|batch-export)-(\d+)\.csv$/', $name, $m)) {
                 $job = $this->jobs->find((int) $m[1]);
                 if (!$job instanceof ExportJob || ExportState::Completed !== $job->getState()) {
                     $this->delete($file->getPathname(), $report);

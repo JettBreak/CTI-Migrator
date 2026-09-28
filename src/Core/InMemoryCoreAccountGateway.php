@@ -96,14 +96,27 @@ final class InMemoryCoreAccountGateway implements CoreAccountGateway
                 $links = [];
                 foreach ($this->links as $link) {
                     if ($link['account'] === $seq) {
-                        $links[] = new CoreAccountLink($link['card'], $link['xml']);
+                        $links[] = [$link['card'], $link['xml']];
                     }
                 }
-                $found[$account['no']][] = new CoreAccount($seq, $account['no'], $account['customer'], $account['type'], $account['branch'], $links);
+                $found[$account['no']][] = new CoreAccount($seq, $account['no'], $account['customer'], $account['type'], $account['branch'], CoreAccountLink::group($links));
             }
         }
 
         return $found;
+    }
+
+    /** Simulates core holding an identical copy of an existing link row (same card, account and xml1). */
+    public function duplicateLink(int $cardSeq, int $accountSeq): void
+    {
+        foreach ($this->links as $link) {
+            if ($link['card'] === $cardSeq && $link['account'] === $accountSeq) {
+                $this->links[] = $link;
+
+                return;
+            }
+        }
+        throw new \LogicException(sprintf('No link between card %d and account seq %d.', $cardSeq, $accountSeq));
     }
 
     public function findUsedKeys(array $keys, bool $forUpdate = false): array

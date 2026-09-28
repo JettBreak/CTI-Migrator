@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\ExportJob;
+use App\Enum\ExportKind;
 use App\Enum\ExportState;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
@@ -25,10 +26,13 @@ final class CardExport
     ) {
     }
 
-    /** Estimated number of cards, from the (cached) status counts. */
-    public function estimate(?string $status): int
+    /** Estimated number of cards, from the (cached) status counts; null when core was too busy to count. */
+    public function estimate(?string $status): ?int
     {
         $counts = $this->data->statusCounts('CARD');
+        if (null === $counts) {
+            return null;
+        }
 
         return null === $status ? array_sum($counts) : ($counts[$status] ?? 0);
     }
@@ -78,9 +82,10 @@ final class CardExport
         $this->filesystem->rename($partial, $path, true);
     }
 
+    /** Where an export job's file is written, whatever its kind (see App\Service\BatchReportExport). */
     public function pathFor(ExportJob $job): string
     {
-        return sprintf('%s/cards-%d.csv', $this->directory, $job->getId());
+        return sprintf(ExportKind::Cards === $job->getKind() ? '%s/cards-%d.csv' : '%s/batch-export-%d.csv', $this->directory, $job->getId());
     }
 
     /** Completed and its file is still on disk (it can be removed by the retention cleanup or by hand). */

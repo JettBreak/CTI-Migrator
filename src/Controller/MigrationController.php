@@ -39,7 +39,7 @@ final class MigrationController extends AbstractController
         $status = $this->normaliseStatus($status);
         $result = $this->data->cardPage(max(1, $page), self::PER_PAGE, $status);
 
-        return $this->renderList('cards', 'Card directory', 'Cardholder and linked account records', $page, $status, $result, $this->data->statusCounts('CARD'));
+        return $this->renderList('cards', 'Card directory', 'Cardholder and linked account records', $page, $status, $result, $this->data->statusCounts('CARD') ?? []);
     }
 
     #[Route('/accounts', name: 'app_accounts', methods: ['GET'])]
@@ -48,7 +48,7 @@ final class MigrationController extends AbstractController
         $status = $this->normaliseStatus($status);
         $result = $this->data->accountPage(max(1, $page), self::PER_PAGE, $status);
 
-        return $this->renderList('accounts', 'Account directory', 'Customer account records', $page, $status, $result, $this->data->statusCounts('ACCT'));
+        return $this->renderList('accounts', 'Account directory', 'Customer account records', $page, $status, $result, $this->data->statusCounts('ACCT') ?? []);
     }
 
     private function normaliseStatus(?string $status): ?string

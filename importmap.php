@@ -27,4 +27,8 @@ return [
     '@hotwired/stimulus' => ['version' => '3.2.2'],
     '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
     '@hotwired/turbo' => ['version' => '8.0.23'],
+    'd3-geo' => ['version' => '3.1.1'],
+    'topojson-client' => ['version' => '3.1.0'],
+    'd3-array' => ['version' => '3.2.4'],
+    'internmap' => ['version' => '2.0.3'],
 ];

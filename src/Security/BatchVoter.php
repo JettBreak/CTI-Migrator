@@ -11,7 +11,7 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
  * Maker-checker: officers upload batches (approvers never do: they only check), the officer who
- * uploaded a batch submits it, and a different user with ROLE_MIGRATION_APPROVER approves or
+ * uploaded a batch submits it (or, if some rows need correction, submits its valid rows only), and a different user with ROLE_MIGRATION_APPROVER approves or
  * rejects it, and resumes it if applying stopped part-way.
  *
  * @extends Voter<string, MigrationBatch|null>
@@ -21,6 +21,8 @@ final class BatchVoter extends Voter
     /** No subject: may this user upload a new batch? */
     public const UPLOAD = 'BATCH_UPLOAD';
     public const SUBMIT = 'BATCH_SUBMIT';
+    /** Submit a batch that needs correction without its rows to correct. */
+    public const SUBMIT_VALID = 'BATCH_SUBMIT_VALID';
     public const REVIEW = 'BATCH_REVIEW';
     public const RESUME = 'BATCH_RESUME';
 
@@ -34,7 +36,7 @@ final class BatchVoter extends Voter
             return null === $subject;
         }
 
-        return in_array($attribute, [self::SUBMIT, self::REVIEW, self::RESUME], true) && $subject instanceof MigrationBatch;
+        return in_array($attribute, [self::SUBMIT, self::SUBMIT_VALID, self::REVIEW, self::RESUME], true) && $subject instanceof MigrationBatch;
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
@@ -55,6 +57,12 @@ final class BatchVoter extends Voter
             $vote?->addReason('Only the uploader can submit a validated batch.');
 
             return BatchStatus::Validated === $subject->getStatus() && $subject->getUploadedBy() === $user;
+        }
+
+        if (self::SUBMIT_VALID === $attribute) {
+            $vote?->addReason('Only the uploader can submit the valid rows of a batch that needs correction, and it must have valid rows.');
+
+            return BatchStatus::Invalid === $subject->getStatus() && $subject->validRowCount() > 0 && $subject->getUploadedBy() === $user;
         }
 
         [$status, $reason] = self::RESUME === $attribute

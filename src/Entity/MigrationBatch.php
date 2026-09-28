@@ -42,6 +42,13 @@ class MigrationBatch
     #[ORM\Column(options: ['default' => 0])]
     private int $appliedLinkCount = 0;
 
+    /**
+     * Submitted with rows that need correction left out: only accounts whose every row is valid are
+     * replaced, and the migrated rows and the rows to correct are exported once it completes.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $skipsInvalidRows = false;
+
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $submittedAt = null;
 
@@ -110,6 +117,23 @@ class MigrationBatch
     public function submit(): void
     {
         $this->assertStatus(BatchStatus::Validated);
+        $this->status = BatchStatus::AwaitingApproval;
+        $this->submittedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Submits a batch that needs correction without its rows to correct.
+     *
+     * @param int $accounts accounts none of whose rows need correction: what the batch now replaces
+     */
+    public function submitValidRowsOnly(int $accounts): void
+    {
+        $this->assertStatus(BatchStatus::Invalid);
+        if ($accounts < 1) {
+            throw new \LogicException(sprintf('Batch #%d has no account without rows to correct.', $this->id));
+        }
+        $this->skipsInvalidRows = true;
+        $this->accountCount = $accounts;
         $this->status = BatchStatus::AwaitingApproval;
         $this->submittedAt = new \DateTimeImmutable();
     }
@@ -248,6 +272,11 @@ class MigrationBatch
     public function getUploadedAt(): \DateTimeImmutable
     {
         return $this->uploadedAt;
+    }
+
+    public function skipsInvalidRows(): bool
+    {
+        return $this->skipsInvalidRows;
     }
 
     public function getSubmittedAt(): ?\DateTimeImmutable

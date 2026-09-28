@@ -87,8 +87,9 @@ final class DbalCoreAccountGateway implements CoreAccountGateway
                 ['seqs' => ArrayParameterType::INTEGER],
             );
             foreach ($linkRows as $row) {
-                $links[(int) $row['account_seq']][] = new CoreAccountLink((int) $row['card_seq'], (string) $row['xml1']);
+                $links[(int) $row['account_seq']][] = [(int) $row['card_seq'], (string) $row['xml1']];
             }
+            $links = array_map(CoreAccountLink::group(...), $links);
 
             foreach ($rows as $row) {
                 $seq = (int) $row['prseqno'];
@@ -144,8 +145,9 @@ final class DbalCoreAccountGateway implements CoreAccountGateway
                     'old_xml' => $link->xml,
                 ],
             );
-            if (1 !== $updated) {
-                throw new \RuntimeException(sprintf('Expected to update 1 prlinkxx row for card %d / account seq %d, changed %d.', $link->cardSeq, $account->seq, $updated));
+            // Identical duplicate rows are renamed together, so they stay identical; any other count means core changed.
+            if ($link->copies !== $updated) {
+                throw new \RuntimeException(sprintf('Expected to update %d prlinkxx row(s) for card %d / account seq %d, changed %d.', $link->copies, $link->cardSeq, $account->seq, $updated));
             }
         }
 

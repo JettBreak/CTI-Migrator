@@ -26,10 +26,12 @@
             {% for job in jobs %}
                 <tr>
                     <td><b>#{{ job.id }}</b></td>
-                    <td>{{ job.statusFilter ?? 'All statuses' }}{% if job.state.value == 'completed' and job.finishedAt %}<small class="block muted">file kept until {{ job.finishedAt|date_modify('+' ~ retention)|date('M j, H:i') }}</small>{% endif %}</td>
+                    <td>{% if job.kind.batchReport %}{{ job.kind.label }} · <a href="{{ path('app_batch_show', {id: job.batch.id}) }}">batch #{{ job.batch.id }}</a>{% else %}{{ job.statusFilter ?? 'All statuses' }}{% endif %}{% if job.state.value == 'completed' and job.finishedAt %}<small class="block muted">file kept until {{ job.finishedAt|date_modify('+' ~ retention)|date('M j, H:i') }}</small>{% endif %}</td>
                     <td>{{ job.createdAt|date('M j, Y H:i') }}<small class="block muted">{{ job.requestedBy }}</small></td>
                     <td>
-                        {% if job.state.value == 'running' or job.state.value == 'queued' %}
+                        {% if job.kind.batchReport %}
+                            {{ job.rowsWritten|number_format }} / {{ job.expectedCards|number_format }} rows
+                        {% elseif job.state.value == 'running' or job.state.value == 'queued' %}
                             {{ job.cardsWritten|number_format }} / ~{{ job.expectedCards|number_format }} cards
                         {% elseif job.cardsWritten > 0 %}
                             {{ job.cardsWritten|number_format }} cards<small class="block muted">{{ job.rowsWritten|number_format }} rows (one per linked account)</small>

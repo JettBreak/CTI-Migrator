@@ -5,8 +5,11 @@ namespace App\Tests\Controller;
 use App\Core\CoreAccountGateway;
 use App\Core\InMemoryCoreAccountGateway;
 use App\Entity\MigrationBatch;
+use App\Entity\ExportJob;
 use App\Entity\MigrationRow;
 use App\Enum\BatchStatus;
+use App\Enum\ExportKind;
+use App\Enum\ExportState;
 use App\Repository\MigrationRowRepository;
 use App\Tests\AppTestCase;
 use Doctrine\ORM\EntityManagerInterface;
@@ -120,13 +123,121 @@ final class BatchWorkflowTest extends AppTestCase
         self::assertStringContainsString('longer than 30 characters', $errors[8]);
         self::assertStringContainsString('both required', $errors[9]);
 
-        self::assertSelectorTextContains('body', "This batch can't be submitted");
+        self::assertSelectorTextContains('body', '9 row(s) need correction');
         self::assertSelectorNotExists('form[action$="/submit"]');
+        self::assertSelectorExists('form[action$="/submit-valid"]', 'the valid row (line 5) can still go ahead on its own');
 
         // Even with a valid token (picked up from another batch's page), the voter refuses.
         $this->view($this->upload(self::VALID_CSV));
         $this->post($batch, 'submit', expectRedirect: false);
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testIdenticalDuplicateLinkRowsInCoreAreCountedOnceAndRenamedTogether(): void
+    {
+        // Core holds card 1002's link to account 2002 three times over (same card, account and xml1).
+        $this->core()->duplicateLink(1002, 2002);
+        $this->core()->duplicateLink(1002, 2002);
+
+        $this->loginAs('officer');
+        $batch = $this->upload(self::VALID_CSV);
+        self::assertSame(BatchStatus::Validated, $batch->getStatus());
+        self::assertSame(1, $this->rows($batch)[2]->getLinkedCards(), 'one card, however many identical link rows');
+
+        $this->post($batch, 'submit');
+        $this->loginAs('approver');
+        $this->post($batch, 'approve');
+        self::assertSame(BatchStatus::Completed, $this->reload($batch)->getStatus());
+
+        $links = array_values(array_filter($this->core()->links, static fn ($l) => 2002 === $l['account']));
+        self::assertCount(3, $links);
+        foreach ($links as $link) {
+            self::assertStringContainsString('<OLDACCTNO>001-009713450</>', $link['xml'], 'every copy follows the new number');
+        }
+    }
+
+    public function testAnAccountNumberSharedBySeparateCoreRecordsIsRejectedAndNamesThem(): void
+    {
+        // A second account record (another customer) with the same number: not two cards on one account.
+        $this->core()->addAccount(2998, '001-004568921');
+
+        $this->loginAs('officer');
+        $batch = $this->upload(<<<'CSV'
+            card_ref,current_account,new_account
+            1001,001-004568921,009-003821447
+            1006,001-004568921,009-003821447
+            CSV);
+
+        self::assertSame(BatchStatus::Invalid, $batch->getStatus());
+        foreach ($this->rows($batch) as $row) {
+            $error = implode(' ', $row->getErrors());
+            self::assertStringContainsString('current_account matches 2 core account records', $error);
+            self::assertStringContainsString('seq 2001 / customer 100284 / branch 7', $error);
+            self::assertStringContainsString('seq 2998 / customer 999999 / branch 7', $error);
+            self::assertStringContainsString('fix the duplicate account number in core first', $error);
+        }
+    }
+
+    public function testTheValidRowsOfABatchThatNeedsCorrectionCanProceedWithoutTheRest(): void
+    {
+        $this->loginAs('officer');
+        $batch = $this->upload(<<<'CSV'
+            card_ref,current_account,new_account
+            1001,001-004568921,009-003821447
+            1002,001-009713450,009-003821448
+            ,001-005688102,009-003821449
+            ,001-000000000,009-100000001
+            1006,001-004568921,009-003821450
+            CSV);
+        self::assertSame(BatchStatus::Invalid, $batch->getStatus());
+        self::assertSame(2, $batch->invalidRowCount());
+
+        // The uploader proceeds with the valid rows; the confirmation says the rest are skipped.
+        self::assertSelectorTextContains('button', 'Proceed with valid rows only');
+        self::assertStringContainsString('need correction are skipped', $this->client->getCrawler()->filter('form[action$="/submit-valid"]')->attr('data-confirm-message-value'));
+        $this->post($batch, 'submit-valid');
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::AwaitingApproval, $batch->getStatus());
+        self::assertTrue($batch->skipsInvalidRows());
+        self::assertSame(2, $batch->accountCount(), '001-004568921 has a row to correct (line 6), so its valid row is skipped too');
+
+        $this->loginAs('approver');
+        $this->post($batch, 'approve');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.success', 'Exports of the migrated rows and the rows to correct are queued');
+
+        self::assertSame(BatchStatus::Completed, $this->reload($batch)->getStatus());
+        self::assertSame([
+            ['from' => '001-005688102', 'to' => '009-003821449', 'user' => 'approver'],
+            ['from' => '001-009713450', 'to' => '009-003821448', 'user' => 'approver'],
+        ], $this->core()->renames);
+        self::assertSame('001-004568921', $this->core()->accounts[2001]['no']);
+
+        // Both exports were queued and (with the test's inline worker) generated.
+        $jobs = static::getContainer()->get(EntityManagerInterface::class)->getRepository(ExportJob::class)->findBy([], ['id' => 'ASC']);
+        self::assertSame([ExportKind::BatchMigrated, ExportKind::BatchCorrections], array_map(static fn (ExportJob $j) => $j->getKind(), $jobs));
+        self::assertSame([ExportState::Completed, ExportState::Completed], array_map(static fn (ExportJob $j) => $j->getState(), $jobs));
+        self::assertSame([2, 3], array_map(static fn (ExportJob $j) => $j->getRowsWritten(), $jobs));
+
+        $this->client->request('GET', sprintf('/exports/%d/download', $jobs[0]->getId()));
+        self::assertResponseIsSuccessful();
+        $migrated = file_get_contents($this->client->getResponse()->getFile()->getPathname());
+        self::assertStringStartsWith("card_ref,card_number,cardholder,old_account,new_account,linked_cards,applied_at,approved_by
+", $migrated);
+        self::assertStringContainsString(',001-009713450,009-003821448,1,', $migrated);
+        self::assertStringContainsString(',001-005688102,009-003821449,', $migrated);
+        self::assertStringNotContainsString('001-004568921', $migrated);
+
+        $this->client->request('GET', sprintf('/exports/%d/download', $jobs[1]->getId()));
+        $corrections = file_get_contents($this->client->getResponse()->getFile()->getPathname());
+        self::assertStringStartsWith("card_ref,current_account,new_account,line,errors
+", $corrections);
+        self::assertStringContainsString('1001,001-004568921,009-003821447,2,"Skipped: another row of this account needs correction."', $corrections);
+        self::assertStringContainsString(',001-000000000,009-100000001,5,', $corrections);
+        self::assertStringContainsString('1006,001-004568921,009-003821450,6,', $corrections);
+
+        $this->client->request('GET', '/exports');
+        self::assertSelectorTextContains('tbody', 'Rows to correct · batch #'.$batch->getId());
     }
 
     public function testCoreChangesAfterValidationFailTheWholeBatchWithoutWriting(): void

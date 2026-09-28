@@ -22,6 +22,8 @@ class MigrationRowRepository extends ServiceEntityRepository
 {
     /** Values per IN (...) list. */
     private const IN_CHUNK = 500;
+    /** Subquery (one batch_id parameter): accounts of the batch with at least one row that needs correction. */
+    private const ACCOUNTS_TO_CORRECT = '(SELECT current_account FROM migration_row WHERE batch_id = ? AND valid = 0)';
 
     public function __construct(ManagerRegistry $registry)
     {
@@ -93,6 +95,24 @@ class MigrationRowRepository extends ServiceEntityRepository
         return ['rows' => (int) $rows, 'invalid' => (int) $invalid, 'accounts' => (int) $accounts];
     }
 
+    /** Rows renamed in core so far. */
+    public function countApplied(MigrationBatch $batch): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM migration_row WHERE batch_id = ? AND applied_at IS NOT NULL',
+            [$batch->getId()],
+        );
+    }
+
+    /** Distinct accounts none of whose rows need correction: what a batch replaces when it skips rows to correct. */
+    public function countFullyValidAccounts(MigrationBatch $batch): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(DISTINCT current_account) FROM migration_row WHERE batch_id = ? AND current_account NOT IN '.self::ACCOUNTS_TO_CORRECT,
+            [$batch->getId(), $batch->getId()],
+        );
+    }
+
     /** @return list<MigrationRow> */
     public function page(MigrationBatch $batch, int $page, int $perPage, bool $invalidOnly = false): array
     {
@@ -111,7 +131,7 @@ class MigrationRowRepository extends ServiceEntityRepository
     /**
      * Streams the batch's rows in file order, a chunk at a time, detaching each chunk once consumed.
      *
-     * @param 'invalid'|'pending'|null $filter rows needing correction, or rows not renamed in core yet
+     * @param 'invalid'|'pending'|'applied'|null $filter rows needing correction, rows not renamed in core yet, or rows renamed
      *
      * @return \Generator<MigrationRow>
      */
@@ -127,6 +147,7 @@ class MigrationRowRepository extends ServiceEntityRepository
             match ($filter) {
                 'invalid' => $query->andWhere('r.valid = false'),
                 'pending' => $query->andWhere('r.appliedAt IS NULL'),
+                'applied' => $query->andWhere('r.appliedAt IS NOT NULL'),
                 null => null,
             };
             $rows = $query->getQuery()->getResult();
@@ -142,18 +163,22 @@ class MigrationRowRepository extends ServiceEntityRepository
 
     /**
      * The next $limit accounts (in account-number order) that still have rows not renamed in core.
+     * A batch that skips rows to correct leaves out every account with such a row, even its valid rows.
      *
      * @return list<string>
      */
     public function nextPendingAccounts(MigrationBatch $batch, int $limit): array
     {
+        [$skip, $params] = $batch->skipsInvalidRows()
+            ? [' AND current_account NOT IN '.self::ACCOUNTS_TO_CORRECT, [$batch->getId(), $batch->getId()]]
+            : ['', [$batch->getId()]];
         $connection = $this->getEntityManager()->getConnection();
         $sql = $connection->getDatabasePlatform()->modifyLimitQuery(
-            'SELECT DISTINCT current_account FROM migration_row WHERE batch_id = ? AND applied_at IS NULL ORDER BY current_account',
+            'SELECT DISTINCT current_account FROM migration_row WHERE batch_id = ? AND applied_at IS NULL'.$skip.' ORDER BY current_account',
             $limit,
         );
 
-        return array_map('strval', $connection->fetchFirstColumn($sql, [$batch->getId()]));
+        return array_map('strval', $connection->fetchFirstColumn($sql, $params));
     }
 
     /**

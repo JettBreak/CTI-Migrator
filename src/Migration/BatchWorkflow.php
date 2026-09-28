@@ -9,6 +9,7 @@ use App\Entity\MigrationRow;
 use App\Enum\BatchStatus;
 use App\Message\ProcessBatch;
 use App\Repository\MigrationRowRepository;
+use App\Service\BatchReportExport;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
@@ -39,6 +40,7 @@ final class BatchWorkflow
         private readonly LockFactory $lockFactory,
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface $logger,
+        private readonly BatchReportExport $reports,
         #[Autowire('%app.batch.sync_max_rows%')] private readonly int $syncMaxRows,
         #[Autowire('%app.batch.apply_chunk%')] private readonly int $applyChunk,
         #[Autowire('%app.batch.upload_dir%')] private readonly string $uploadDir,
@@ -72,6 +74,25 @@ final class BatchWorkflow
         $this->underLock($batch, BatchStatus::Validated, function () use ($batch, $user): void {
             $batch->submit();
             $this->audit($batch, $user, 'submitted');
+            $this->em->flush();
+        });
+    }
+
+    /**
+     * Submits a batch that needs correction without its rows to correct: every account with such a row
+     * is left out, and once the rest are replaced the migrated rows and the rows to correct are exported.
+     *
+     * @throws BatchLocked
+     */
+    public function submitValidRows(MigrationBatch $batch, string $user): void
+    {
+        $this->underLock($batch, BatchStatus::Invalid, function () use ($batch, $user): void {
+            $accounts = $this->rows->countFullyValidAccounts($batch);
+            if (0 === $accounts) {
+                throw new BatchLocked('Every account in this batch has a row that needs correction, so there is nothing to replace. Correct the file and upload it again.');
+            }
+            $batch->submitValidRowsOnly($accounts);
+            $this->audit($batch, $user, 'submitted', sprintf('Valid rows only: %d account(s) to replace; %d row(s) that need correction are skipped', $accounts, $batch->invalidRowCount()));
             $this->em->flush();
         });
     }
@@ -220,6 +241,12 @@ final class BatchWorkflow
         $batch->markCompleted();
         $this->audit($batch, $actor, 'completed', sprintf('%d account(s) replaced in core, %d card link(s) updated', $batch->getAppliedAccountCount(), $batch->getAppliedLinkCount()));
         $this->em->flush();
+
+        if ($batch->skipsInvalidRows()) {
+            [$migrated, $corrections] = $this->reports->queue($batch, $actor);
+            $this->audit($batch, $actor, 'exports queued', sprintf('Export #%d (migrated rows) and export #%d (rows to correct)', $migrated->getId(), $corrections->getId()));
+            $this->em->flush();
+        }
     }
 
     private function stopApplying(MigrationBatch $batch, string $actor, \Throwable $e): void
