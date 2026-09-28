@@ -183,7 +183,11 @@ final class UserAccountsTest extends AppTestCase
     public function testAdministratorsLandOnUserAdministration(): void
     {
         $this->createUser('admin');
+        // Opening the overview while signed out must not send the administrator back there.
+        $this->client->request('GET', '/');
+        self::assertResponseRedirects('/login');
         $this->signIn('admin', self::PASSWORD);
+        self::assertResponseRedirects('/account/start');
         $this->client->followRedirect();
         self::assertResponseRedirects('/admin/users');
     }

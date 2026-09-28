@@ -27,7 +27,10 @@ security:
             form_login:
                 login_path: app_login
                 check_path: app_login
+                # Always land on app_home, which picks the page by role: returning to the page that
+                # asked for the sign-in would send an administrator to migration pages they cannot see.
                 default_target_path: app_home
+                always_use_default_target_path: true
                 enable_csrf: true
             # Slows down password guessing per username and IP; accounts also lock after
             # app.security.max_failed_logins failures in a row (see LoginSubscriber).
