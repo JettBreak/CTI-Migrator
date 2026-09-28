@@ -23,18 +23,25 @@
         radial-gradient(circle at 75% 50%,#0c1f45,#050b1c 80%) fixed}
     /* Header and footer sit directly on the space scene, with light text */
     .login-bar{position:relative;z-index:1;border:0;background:transparent}
+    header.login-bar{height:auto}
+    /* Inline field errors (field-validation controller), in place of the browser's bubbles */
+    .login-page input[aria-invalid="true"]{border-color:#ff6b7f;box-shadow:0 0 0 3px rgba(255,107,127,.18)}
+    .login-page .field-error{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12.5px;font-weight:500;color:#ff9aa8;animation:field-error-in .22s ease-out}
+    .login-page .field-error svg{flex-shrink:0}
+    @keyframes field-error-in{from{opacity:0;transform:translateY(-4px)}}
+    @media (prefers-reduced-motion:reduce){.login-page .field-error{animation:none}}
 </style>
 <div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 <canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="max-md:hidden fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
-<header class="login-bar h-16 flex items-center gap-3 px-6 sm:px-10">
-    <img src="{{ asset('images/logo-64.png') }}" alt="" width="28" height="28">
-    <span style="font:700 16px Manrope,sans-serif;color:#fff">Coreware Technologies Inc.</span>
+<header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
+    <img src="{{ asset('images/logo-256.png') }}" alt="" width="60" height="60" class="w-[42px] h-[42px] sm:w-[60px] sm:h-[60px] shrink-0" style="filter:drop-shadow(0 0 12px rgba(245,154,35,.55))">
+    <span class="text-lg sm:text-[33px] leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>
     <span class="ml-auto inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1" style="background:var(--green-bg);color:var(--green);border:1px solid rgba(22,135,101,.2)"><span class="live-dot" style="margin:0"></span>Secure environment</span>
 </header>
 <main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
-    <div class="w-full max-w-sm">
-        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4">
-            <h1 class="text-3xl sm:text-4xl" style="color:#fff;line-height:1.15">Sign in to<br>migration control</h1>
+    <div class="w-full max-w-xl pl-40">
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>migration control</h1>
+        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation" data-action="field-validation#validate page-loader#show">
             <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
             {% if error %}
                 <p class="text-sm rounded-md px-3 py-2" style="background:var(--red-bg);color:var(--red)">{{ error.messageKey|trans(error.messageData, 'security') }}</p>
@@ -42,11 +49,12 @@
             <label class="block text-sm font-semibold" style="color:#dbe7ff">Username
                 <input type="text" name="_username" value="{{ last_username }}" autocomplete="off" required autofocus class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
             </label>
-            <label class="block text-sm font-semibold" style="color:#dbe7ff">Password
+            <label class="block text-sm font-semibold pb-2" style="color:#dbe7ff">Password
                 <input type="password" name="_password" autocomplete="off" required class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
             </label>
             <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
-            <button type="submit" class="button primary w-full" style="margin:8px 0 0">Sign in</button>
+            <button type="submit" class="button primary w-full h-12" style="margin:8px 0 0">Sign in</button>
+            <span class="block text-xs mt-2" style="color:#8ea7cf">Forgot your password? Contact your system administrator.</span>
         </form>
     </div>
 </main>

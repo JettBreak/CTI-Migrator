@@ -12,6 +12,10 @@ import { Controller } from '@hotwired/stimulus';
  * to an event name (e.g. "login-globe:ready"); the overlay then hides when that event reaches the
  * document, or after `timeout` ms at the latest.
  *
+ * A form that skips Turbo (data-turbo="false", like the login form, so the next page gets a full
+ * load and keeps its own overlay until its window has loaded) can show it with
+ * data-action="page-loader#show".
+ *
  * Skipped: same-page refreshes (auto-refresh ticks) and visits started inside an area that shows
  * its own indicator (the `loading` controller's `.is-loading`). If this controller never runs, a
  * CSS fail-safe hides the overlay after a few seconds.
@@ -75,7 +79,12 @@ export default class extends Controller {
         const url = event.detail?.url;
         if (url && url === window.location.href && event.detail.action === 'replace') return;
         if (document.querySelector('.is-loading')) return;
+        this.show();
+    }
 
+    /** Shows the overlay after a short delay; also usable as an action, e.g. on a data-turbo="false" form's submit. */
+    show(event) {
+        if (event?.defaultPrevented) return; // e.g. a submit cancelled by field-validation
         clearTimeout(this.timer);
         this.timer = setTimeout(() => {
             this.element.classList.add('page-loading');
