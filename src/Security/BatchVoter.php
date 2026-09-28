@@ -25,6 +25,10 @@ final class BatchVoter extends Voter
     public const SUBMIT_VALID = 'BATCH_SUBMIT_VALID';
     public const REVIEW = 'BATCH_REVIEW';
     public const RESUME = 'BATCH_RESUME';
+    /** Rollback, maker-checker: an officer requests it, a different approver approves or rejects (and resumes) it. */
+    public const ROLLBACK_REQUEST = 'BATCH_ROLLBACK_REQUEST';
+    public const ROLLBACK_REVIEW = 'BATCH_ROLLBACK_REVIEW';
+    public const ROLLBACK_RESUME = 'BATCH_ROLLBACK_RESUME';
 
     public function __construct(private readonly AccessDecisionManagerInterface $decisions)
     {
@@ -36,7 +40,7 @@ final class BatchVoter extends Voter
             return null === $subject;
         }
 
-        return in_array($attribute, [self::SUBMIT, self::SUBMIT_VALID, self::REVIEW, self::RESUME], true) && $subject instanceof MigrationBatch;
+        return in_array($attribute, [self::SUBMIT, self::SUBMIT_VALID, self::REVIEW, self::RESUME, self::ROLLBACK_REQUEST, self::ROLLBACK_REVIEW, self::ROLLBACK_RESUME], true) && $subject instanceof MigrationBatch;
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
@@ -63,6 +67,23 @@ final class BatchVoter extends Voter
             $vote?->addReason('Only the uploader can submit the valid rows of a batch that needs correction, and it must have valid rows.');
 
             return BatchStatus::Invalid === $subject->getStatus() && $subject->validRowCount() > 0 && $subject->getUploadedBy() === $user;
+        }
+
+        if (self::ROLLBACK_REQUEST === $attribute) {
+            $vote?->addReason('A migration officer (not an approver) can request the rollback of a completed or part-way batch.');
+
+            return \in_array($subject->getStatus(), [BatchStatus::Completed, BatchStatus::Halted], true)
+                && $subject->getAppliedAccountCount() > 0
+                && $this->decisions->decide($token, ['ROLE_MIGRATION_OFFICER']) && !$this->decisions->decide($token, ['ROLE_MIGRATION_APPROVER']);
+        }
+
+        if (self::ROLLBACK_REVIEW === $attribute || self::ROLLBACK_RESUME === $attribute) {
+            $vote?->addReason('An approver other than the one who requested the rollback decides on it.');
+            $status = self::ROLLBACK_REVIEW === $attribute ? BatchStatus::RollbackRequested : BatchStatus::RollbackHalted;
+
+            return $status === $subject->getStatus()
+                && $subject->getRollbackRequestedBy() !== $user
+                && $this->decisions->decide($token, ['ROLE_MIGRATION_APPROVER']);
         }
 
         [$status, $reason] = self::RESUME === $attribute

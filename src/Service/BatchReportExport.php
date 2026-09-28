@@ -22,6 +22,8 @@ final class BatchReportExport
     public const MIGRATED_HEADER = ['card_ref', 'card_number', 'cardholder', 'old_account', 'new_account', 'linked_cards', 'applied_at', 'approved_by'];
     /** The upload format; the line and errors columns are ignored on upload. */
     public const CORRECTIONS_HEADER = ['card_ref', 'current_account', 'new_account', 'line', 'errors'];
+    /** Accounts a rollback left on their new number: current_account is the old number it could not get back. */
+    public const ROLLBACK_SKIPPED_HEADER = ['card_ref', 'old_account', 'new_account', 'line', 'reason'];
     private const SKIPPED = 'Skipped: another row of this account needs correction.';
 
     public function __construct(
@@ -50,6 +52,17 @@ final class BatchReportExport
         return $jobs;
     }
 
+    /** Queues the export of the accounts a rollback had to leave alone (only when there are any). */
+    public function queueRollbackSkipped(MigrationBatch $batch, string $requestedBy, int $rows): ExportJob
+    {
+        $job = new ExportJob($requestedBy, null, $rows, ExportKind::BatchRollbackSkipped, $batch);
+        $this->em->persist($job);
+        $this->em->flush();
+        $this->bus->dispatch(new GenerateCardExport($job->getId()));
+
+        return $job;
+    }
+
     /**
      * Writes $job's report to $path. The file only appears under its final name once complete.
      *
@@ -58,16 +71,20 @@ final class BatchReportExport
     public function writeFile(ExportJob $job, string $path, callable $onChunk): void
     {
         $batch = $job->getBatch() ?? throw new \LogicException(sprintf('Export #%d is not about a batch.', $job->getId()));
-        $migrated = ExportKind::BatchMigrated === $job->getKind();
+        [$header, $filter, $line] = match ($job->getKind()) {
+            ExportKind::BatchMigrated => [self::MIGRATED_HEADER, 'applied', fn (MigrationRow $r) => $this->migrated($r, $batch)],
+            ExportKind::BatchRollbackSkipped => [self::ROLLBACK_SKIPPED_HEADER, 'rollback_skipped', static fn (MigrationRow $r) => [$r->getCardRef(), $r->getCurrentAccount(), $r->getNewAccount(), (string) $r->getLineNumber(), $r->getRollbackError()]],
+            default => [self::CORRECTIONS_HEADER, 'pending', $this->correction(...)],
+        };
 
         $this->filesystem->mkdir(\dirname($path));
         $partial = $path.'.part';
         $handle = fopen($partial, 'w');
         try {
-            $this->csv->writeRow($handle, $migrated ? self::MIGRATED_HEADER : self::CORRECTIONS_HEADER);
+            $this->csv->writeRow($handle, $header);
             $written = 0;
-            foreach ($this->rows->stream($batch, $migrated ? 'applied' : 'pending') as $row) {
-                $this->csv->writeRow($handle, $migrated ? $this->migrated($row, $batch) : $this->correction($row));
+            foreach ($this->rows->stream($batch, $filter) as $row) {
+                $this->csv->writeRow($handle, $line($row));
                 if (0 === ++$written % 1000) {
                     $onChunk(1000, 1000);
                 }

@@ -102,7 +102,13 @@ class ExportJob
     public function downloadName(): string
     {
         if ($this->kind->isBatchReport()) {
-            return sprintf('batch-%d-%s-%d.csv', $this->batch?->getId(), ExportKind::BatchMigrated === $this->kind ? 'migrated-rows' : 'rows-to-correct', $this->id);
+            $name = match ($this->kind) {
+                ExportKind::BatchMigrated => 'migrated-rows',
+                ExportKind::BatchRollbackSkipped => 'not-rolled-back',
+                default => 'rows-to-correct',
+            };
+
+            return sprintf('batch-%d-%s-%d.csv', $this->batch?->getId(), $name, $this->id);
         }
         $suffix = $this->statusFilter ? '-'.strtolower(trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', $this->statusFilter), '-')) : '';
 

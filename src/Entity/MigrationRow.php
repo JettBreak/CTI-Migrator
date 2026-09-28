@@ -18,6 +18,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_migration_row_new', columns: ['batch_id', 'new_account'])]
 #[ORM\Index(name: 'idx_migration_row_pending', columns: ['batch_id', 'applied_at', 'current_account'])]
 #[ORM\Index(name: 'idx_migration_row_valid', columns: ['batch_id', 'valid', 'line_number'])]
+#[ORM\Index(name: 'idx_migration_row_rollback', columns: ['batch_id', 'rolled_back_at', 'current_account'])]
 class MigrationRow
 {
     #[ORM\Id]
@@ -45,6 +46,14 @@ class MigrationRow
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $appliedAt = null;
+
+    /** When a rollback gave current_account its number back in core. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $rolledBackAt = null;
+
+    /** Why a rollback left this row's account alone (core changed since it was replaced). */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $rollbackError = null;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -130,6 +139,16 @@ class MigrationRow
     public function getLinkedCards(): ?int
     {
         return $this->linkedCards;
+    }
+
+    public function getRolledBackAt(): ?\DateTimeImmutable
+    {
+        return $this->rolledBackAt;
+    }
+
+    public function getRollbackError(): ?string
+    {
+        return $this->rollbackError;
     }
 
     public function getAppliedAt(): ?\DateTimeImmutable

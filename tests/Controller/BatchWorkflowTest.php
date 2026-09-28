@@ -133,6 +133,96 @@ final class BatchWorkflowTest extends AppTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testACompletedBatchCanBeRolledBackWithMakerChecker(): void
+    {
+        $originalLinks = $this->core()->links;
+        $batch = $this->completedBatch();
+
+        // Approvers do not request rollbacks, and a reason is required.
+        $this->loginAs('approver');
+        $this->post($batch, 'rollback', ['reason' => 'Wrong file'], expectRedirect: false);
+        self::assertResponseStatusCodeSame(403);
+        $this->loginAs('officer');
+        $this->post($batch, 'rollback', ['reason' => '  ']);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.error', 'Give a reason for the rollback.');
+        self::assertSame(BatchStatus::Completed, $this->reload($batch)->getStatus());
+
+        $this->post($batch, 'rollback', ['reason' => 'Numbers were issued for the wrong branch']);
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::RollbackRequested, $batch->getStatus());
+        self::assertSame('officer', $batch->getRollbackRequestedBy());
+        self::assertSame([], $this->core()->restores, 'nothing changes before approval');
+
+        // The requester cannot approve it.
+        $this->post($batch, 'rollback/approve', expectRedirect: false);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->loginAs('approver');
+        $this->post($batch, 'rollback/approve');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.success', 'Rollback done');
+
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::RolledBack, $batch->getStatus());
+        self::assertSame(3, $batch->getRolledBackAccountCount());
+        self::assertSame(0, $batch->getRollbackSkippedCount());
+        self::assertSame('001-004568921', $this->core()->accounts[2001]['no']);
+        self::assertSame('001-009713450', $this->core()->accounts[2002]['no']);
+        self::assertSame('001-005688102', $this->core()->accounts[2003]['no']);
+        self::assertSame($originalLinks, $this->core()->links, 'every card link is exactly as before the replacement');
+        foreach ($this->rows($batch) as $row) {
+            self::assertNotNull($row->getRolledBackAt());
+        }
+        self::assertSelectorTextContains('.audit', 'Rollback requested by officer');
+        self::assertSelectorTextContains('.audit', 'Rolled back by approver');
+        self::assertSelectorTextContains('tbody', 'Rolled back');
+        self::assertCount(0, static::getContainer()->get(EntityManagerInterface::class)->getRepository(ExportJob::class)->findBy(['kind' => ExportKind::BatchRollbackSkipped]));
+    }
+
+    public function testRollbackLeavesAccountsThatChangedInCoreAloneAndExportsThem(): void
+    {
+        $batch = $this->completedBatch();
+        // Since the replacement, someone gave another account 001-005688102 (an old number of this batch).
+        $this->core()->addAccount(2999, '001-005688102');
+
+        $this->loginAs('officer');
+        $this->post($batch, 'rollback', ['reason' => 'Test rollback']);
+        $this->loginAs('approver');
+        $this->post($batch, 'rollback/approve');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.success', 'were left alone because core changed since');
+
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::RolledBack, $batch->getStatus());
+        self::assertSame([2, 1], [$batch->getRolledBackAccountCount(), $batch->getRollbackSkippedCount()]);
+        self::assertSame('009-003821449', $this->core()->accounts[2003]['no'], 'left on its new number');
+        self::assertSame('001-004568921', $this->core()->accounts[2001]['no']);
+
+        $jobs = static::getContainer()->get(EntityManagerInterface::class)->getRepository(ExportJob::class)->findBy(['kind' => ExportKind::BatchRollbackSkipped]);
+        self::assertCount(1, $jobs);
+        self::assertSame(ExportState::Completed, $jobs[0]->getState());
+        $this->client->request('GET', sprintf('/exports/%d/download', $jobs[0]->getId()));
+        $csv = file_get_contents($this->client->getResponse()->getFile()->getPathname());
+        self::assertStringStartsWith("card_ref,old_account,new_account,line,reason\n", $csv);
+        self::assertStringContainsString(',001-005688102,009-003821449,5,"001-005688102 is in use by another account again."', $csv);
+    }
+
+    public function testARollbackRequestCanBeRejected(): void
+    {
+        $batch = $this->completedBatch();
+        $this->loginAs('officer');
+        $this->post($batch, 'rollback', ['reason' => 'Not sure']);
+        $this->loginAs('approver');
+        $this->post($batch, 'rollback/reject', ['note' => 'The numbers are correct']);
+
+        $batch = $this->reload($batch);
+        self::assertSame(BatchStatus::Completed, $batch->getStatus());
+        self::assertSame([], $this->core()->restores);
+        $this->view($batch);
+        self::assertSelectorTextContains('body', 'Rollback request rejected by approver: The numbers are correct');
+    }
+
     public function testIdenticalDuplicateLinkRowsInCoreAreCountedOnceAndRenamedTogether(): void
     {
         // Core holds card 1002's link to account 2002 three times over (same card, account and xml1).
@@ -417,6 +507,19 @@ final class BatchWorkflowTest extends AppTestCase
         self::assertSelectorTextContains('.form-errors', 'Upload a .csv file.');
 
         self::assertSame(0, static::getContainer()->get(EntityManagerInterface::class)->getRepository(MigrationBatch::class)->count([]));
+    }
+
+    /** VALID_CSV uploaded by the officer, submitted, and approved (applied) by the approver. */
+    private function completedBatch(): MigrationBatch
+    {
+        $this->loginAs('officer');
+        $batch = $this->upload(self::VALID_CSV);
+        $this->post($batch, 'submit');
+        $this->loginAs('approver');
+        $this->post($batch, 'approve');
+        self::assertSame(BatchStatus::Completed, $this->reload($batch)->getStatus());
+
+        return $batch;
     }
 
     private function upload(string $csv): MigrationBatch

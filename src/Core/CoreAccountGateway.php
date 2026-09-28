@@ -53,4 +53,13 @@ interface CoreAccountGateway
      * @throws \RuntimeException when core rows did not change exactly as expected
      */
     public function renameAccount(CoreAccount $account, string $newAccountNo, string $user): void;
+
+    /**
+     * Rollback of renameAccount(): $account (found by its current, new number) gets $restoredAccountNo
+     * back, every link's xml1 is reverted (LinkXml::revert()), and a core log entry is written.
+     * Must run inside transactional(); check first that every link can be reverted.
+     *
+     * @throws \RuntimeException when core rows did not change exactly as expected
+     */
+    public function restoreAccount(CoreAccount $account, string $restoredAccountNo, string $user): void;
 }

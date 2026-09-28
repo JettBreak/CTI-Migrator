@@ -11,6 +11,8 @@ enum ExportKind: string
     case BatchMigrated = 'batch_migrated';
     /** Rows a batch left out (they need correction), in the upload format; queued with BatchMigrated. */
     case BatchCorrections = 'batch_corrections';
+    /** Accounts a rollback left alone because core changed since they were replaced, with the reason. */
+    case BatchRollbackSkipped = 'batch_rollback_skipped';
 
     public function label(): string
     {
@@ -18,6 +20,7 @@ enum ExportKind: string
             self::Cards => 'Card-account source',
             self::BatchMigrated => 'Migrated rows',
             self::BatchCorrections => 'Rows to correct',
+            self::BatchRollbackSkipped => 'Not rolled back',
         };
     }
 

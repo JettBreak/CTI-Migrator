@@ -117,8 +117,20 @@ final class DbalCoreAccountGateway implements CoreAccountGateway
 
     public function renameAccount(CoreAccount $account, string $newAccountNo, string $user): void
     {
+        $this->rekey($account, $newAccountNo, $user, static fn (string $xml) => LinkXml::migrate($xml, $account->accountNo, $newAccountNo));
+    }
+
+    public function restoreAccount(CoreAccount $account, string $restoredAccountNo, string $user): void
+    {
+        $this->rekey($account, $restoredAccountNo, $user, static fn (string $xml) => LinkXml::revert($xml, $account->accountNo, $restoredAccountNo)
+            ?? throw new \RuntimeException(sprintf('Card link of account seq %d changed since it was replaced.', $account->seq)));
+    }
+
+    /** @param callable(string): string $newXml the link XML to write, given its current XML */
+    private function rekey(CoreAccount $account, string $newAccountNo, string $user, callable $newXml): void
+    {
         if (!$this->coreappConnection->isTransactionActive()) {
-            throw new \LogicException('renameAccount() must run inside transactional().');
+            throw new \LogicException('Renaming an account must run inside transactional().');
         }
         $user = mb_substr($user, 0, 20);
 
@@ -137,7 +149,7 @@ final class DbalCoreAccountGateway implements CoreAccountGateway
                 "UPDATE prlinkxx SET xml1 = :new_xml, useraudit = :user, wkstn = :wkstn
                  WHERE prtype = 'ACCT' AND prseqno = :card_seq AND pseqnolink = :account_seq AND COALESCE(xml1, '') = :old_xml",
                 [
-                    'new_xml' => LinkXml::migrate($link->xml, $account->accountNo, $newAccountNo),
+                    'new_xml' => $newXml($link->xml),
                     'user' => $user,
                     'wkstn' => self::WORKSTATION,
                     'card_seq' => $link->cardSeq,

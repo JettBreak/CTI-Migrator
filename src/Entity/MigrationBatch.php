@@ -67,6 +67,35 @@ class MigrationBatch
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $failureReason = null;
 
+    /** Rollback (maker-checker): who asked and why, the status it returns to if refused, who decided. */
+    #[ORM\Column(length: 32, nullable: true, enumType: BatchStatus::class)]
+    private ?BatchStatus $rollbackFrom = null;
+
+    #[ORM\Column(length: 180, nullable: true)]
+    private ?string $rollbackRequestedBy = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $rollbackRequestedAt = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $rollbackReason = null;
+
+    #[ORM\Column(length: 180, nullable: true)]
+    private ?string $rollbackReviewedBy = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $rollbackReviewedAt = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $rollbackReviewNote = null;
+
+    /** Accounts given their old number back, and accounts skipped because core changed since (see the rows' rollback errors). */
+    #[ORM\Column(options: ['default' => 0])]
+    private int $rolledBackAccountCount = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $rollbackSkippedCount = 0;
+
     #[ORM\Column]
     private \DateTimeImmutable $uploadedAt;
 
@@ -194,6 +223,71 @@ class MigrationBatch
         $this->invalidRowCount = $count;
     }
 
+    /** A migration officer asks for the accounts this batch replaced to get their old numbers back. */
+    public function requestRollback(string $user, string $reason): void
+    {
+        if (!\in_array($this->status, [BatchStatus::Completed, BatchStatus::Halted], true) || 0 === $this->appliedAccountCount) {
+            throw new \LogicException(sprintf('Batch #%d has no replaced accounts to roll back.', $this->id));
+        }
+        $this->rollbackFrom = $this->status;
+        $this->status = BatchStatus::RollbackRequested;
+        $this->rollbackRequestedBy = $user;
+        $this->rollbackRequestedAt = new \DateTimeImmutable();
+        $this->rollbackReason = $reason;
+        $this->rollbackReviewedBy = $this->rollbackReviewedAt = $this->rollbackReviewNote = null;
+    }
+
+    public function approveRollback(string $reviewer): void
+    {
+        $this->assertStatus(BatchStatus::RollbackRequested);
+        $this->status = BatchStatus::RollingBack;
+        $this->rollbackReviewedBy = $reviewer;
+        $this->rollbackReviewedAt = new \DateTimeImmutable();
+        $this->processedAt = null;
+        $this->failureReason = null;
+    }
+
+    /** The batch goes back to how it was (Completed or Stopped part-way); nothing changes in core. */
+    public function rejectRollback(string $reviewer, ?string $note): void
+    {
+        $this->assertStatus(BatchStatus::RollbackRequested);
+        $this->status = $this->rollbackFrom ?? BatchStatus::Completed;
+        $this->rollbackReviewedBy = $reviewer;
+        $this->rollbackReviewedAt = new \DateTimeImmutable();
+        $this->rollbackReviewNote = $note;
+    }
+
+    /** One chunk was committed in core. */
+    public function recordRolledBack(int $restored, int $skipped): void
+    {
+        $this->assertStatus(BatchStatus::RollingBack);
+        $this->rolledBackAccountCount += $restored;
+        $this->rollbackSkippedCount += $skipped;
+    }
+
+    public function markRolledBack(): void
+    {
+        $this->assertStatus(BatchStatus::RollingBack);
+        $this->status = BatchStatus::RolledBack;
+        $this->processedAt = new \DateTimeImmutable();
+    }
+
+    public function stopRollingBack(string $reason): void
+    {
+        $this->assertStatus(BatchStatus::RollingBack);
+        $this->status = BatchStatus::RollbackHalted;
+        $this->processedAt = new \DateTimeImmutable();
+        $this->failureReason = $reason;
+    }
+
+    public function resumeRollback(): void
+    {
+        $this->assertStatus(BatchStatus::RollbackHalted);
+        $this->status = BatchStatus::RollingBack;
+        $this->processedAt = null;
+        $this->failureReason = null;
+    }
+
     private function assertStatus(BatchStatus $expected): void
     {
         if ($this->status !== $expected) {
@@ -207,9 +301,11 @@ class MigrationBatch
         if (!$this->status->busy()) {
             return 100;
         }
-        [$done, $total] = BatchStatus::Importing === $this->status
-            ? [$this->validatedRowCount, $this->rowCount]
-            : [$this->appliedAccountCount, $this->accountCount];
+        [$done, $total] = match ($this->status) {
+            BatchStatus::Importing => [$this->validatedRowCount, $this->rowCount],
+            BatchStatus::RollingBack => [$this->rolledBackAccountCount + $this->rollbackSkippedCount, $this->appliedAccountCount],
+            default => [$this->appliedAccountCount, $this->accountCount],
+        };
 
         return $total > 0 ? min(99, (int) floor($done / $total * 100)) : 0;
     }
@@ -302,6 +398,51 @@ class MigrationBatch
     public function getProcessedAt(): ?\DateTimeImmutable
     {
         return $this->processedAt;
+    }
+
+    public function getRollbackFrom(): ?BatchStatus
+    {
+        return $this->rollbackFrom;
+    }
+
+    public function getRollbackRequestedBy(): ?string
+    {
+        return $this->rollbackRequestedBy;
+    }
+
+    public function getRollbackRequestedAt(): ?\DateTimeImmutable
+    {
+        return $this->rollbackRequestedAt;
+    }
+
+    public function getRollbackReason(): ?string
+    {
+        return $this->rollbackReason;
+    }
+
+    public function getRollbackReviewedBy(): ?string
+    {
+        return $this->rollbackReviewedBy;
+    }
+
+    public function getRollbackReviewedAt(): ?\DateTimeImmutable
+    {
+        return $this->rollbackReviewedAt;
+    }
+
+    public function getRollbackReviewNote(): ?string
+    {
+        return $this->rollbackReviewNote;
+    }
+
+    public function getRolledBackAccountCount(): int
+    {
+        return $this->rolledBackAccountCount;
+    }
+
+    public function getRollbackSkippedCount(): int
+    {
+        return $this->rollbackSkippedCount;
     }
 
     public function getFailureReason(): ?string

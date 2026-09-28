@@ -3,6 +3,7 @@
 namespace App\Migration;
 
 use App\Core\CoreAccountGateway;
+use App\Core\LinkXml;
 use App\Entity\AuditEntry;
 use App\Entity\MigrationBatch;
 use App\Entity\MigrationRow;
@@ -137,6 +138,66 @@ final class BatchWorkflow
         $this->startApplying($batch, $approver);
     }
 
+    /**
+     * Maker: a migration officer asks for every account this batch replaced to get its old number back.
+     *
+     * @throws BatchLocked
+     */
+    public function requestRollback(MigrationBatch $batch, string $user, string $reason): void
+    {
+        $lock = $this->lockFactory->createLock(self::LOCK, ttl: 600);
+        if (!$lock->acquire()) {
+            throw new BatchLocked('Another batch is being processed right now. Try again in a moment.');
+        }
+        try {
+            $this->em->refresh($batch);
+            if (!\in_array($batch->getStatus(), [BatchStatus::Completed, BatchStatus::Halted], true)) {
+                throw new BatchLocked(sprintf('This batch is now "%s"; reload the page.', $batch->getStatus()->label()));
+            }
+            $batch->requestRollback($user, $reason);
+            $this->audit($batch, $user, 'rollback requested', $reason);
+            $this->em->flush();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Checker: an approver approves the rollback and it starts (in the request, or in the worker for large batches).
+     *
+     * @throws BatchLocked
+     */
+    public function approveRollback(MigrationBatch $batch, string $approver): void
+    {
+        $this->underLock($batch, BatchStatus::RollbackRequested, function () use ($batch, $approver): void {
+            $batch->approveRollback($approver);
+            $this->audit($batch, $approver, 'rollback approved', sprintf('%d account(s) to give their old number back', $batch->getAppliedAccountCount()));
+            $this->em->flush();
+        });
+        $this->startRollingBack($batch, $approver);
+    }
+
+    /** @throws BatchLocked */
+    public function rejectRollback(MigrationBatch $batch, string $approver, ?string $note): void
+    {
+        $this->underLock($batch, BatchStatus::RollbackRequested, function () use ($batch, $approver, $note): void {
+            $batch->rejectRollback($approver, $note);
+            $this->audit($batch, $approver, 'rollback rejected', $note);
+            $this->em->flush();
+        });
+    }
+
+    /** @throws BatchLocked */
+    public function resumeRollback(MigrationBatch $batch, string $approver): void
+    {
+        $this->underLock($batch, BatchStatus::RollbackHalted, function () use ($batch, $approver): void {
+            $batch->resumeRollback();
+            $this->audit($batch, $approver, 'rollback resumed', sprintf('%d of %d account(s) already dealt with', $batch->getRolledBackAccountCount() + $batch->getRollbackSkippedCount(), $batch->getAppliedAccountCount()));
+            $this->em->flush();
+        });
+        $this->startRollingBack($batch, $approver);
+    }
+
     /** Background step (App\Message\ProcessBatch): continue the batch from wherever it is. */
     public function process(int $batchId, string $actor): void
     {
@@ -144,6 +205,7 @@ final class BatchWorkflow
         match ($batch?->getStatus()) {
             BatchStatus::Importing => $this->validate($batch, $this->storedFile($batch)),
             BatchStatus::Processing => $this->applyPending($batch, $actor),
+            BatchStatus::RollingBack => $this->rollbackPending($batch, $actor),
             default => null, // deleted, or already handled (e.g. a duplicate delivery)
         };
     }
@@ -245,6 +307,129 @@ final class BatchWorkflow
             $this->audit($batch, $actor, 'exports queued', sprintf('Export #%d (migrated rows) and export #%d (rows to correct)', $migrated->getId(), $corrections->getId()));
             $this->em->flush();
         }
+    }
+
+    private function startRollingBack(MigrationBatch $batch, string $actor): void
+    {
+        if ($this->runsInRequest($batch)) {
+            $this->rollbackPending($batch, $actor);
+        } else {
+            $this->bus->dispatch(new ProcessBatch($batch->getId(), $actor));
+        }
+    }
+
+    /**
+     * Gives the batch's replaced accounts their old numbers back, $applyChunk accounts per core transaction.
+     *
+     * Each account is checked under row locks first: its new number must still be exactly one account
+     * record, its old number must be free, and every card link must still be exactly as the replacement
+     * left it (LinkXml::revert()). An account that fails a check is left alone; the reason is kept on its
+     * rows and exported afterwards. An unexpected error rolls the chunk back and stops the rollback
+     * (RollbackHalted; an approver can resume it).
+     */
+    private function rollbackPending(MigrationBatch $batch, string $actor): void
+    {
+        while ([] !== $accounts = $this->rows->nextRollbackAccounts($batch, $this->applyChunk)) {
+            $lock = $this->lockFactory->createLock(self::LOCK, ttl: 600);
+            $lock->acquire(true);
+            try {
+                $this->em->refresh($batch);
+                if (BatchStatus::RollingBack !== $batch->getStatus()) {
+                    return; // finished or stopped by a concurrent run
+                }
+                $numbers = $this->rows->replacedNumbers($batch, $accounts); // old => new
+
+                try {
+                    [$restored, $skipped] = $this->core->transactional(fn (): array => $this->restoreChunk($numbers, $actor));
+                } catch (\Throwable $e) {
+                    $this->stopRollingBack($batch, $actor, $e);
+
+                    return;
+                }
+
+                $this->rows->markRolledBack($batch, $restored, new \DateTimeImmutable());
+                foreach ($skipped as $old => $reason) {
+                    $this->rows->markRollbackSkipped($batch, (string) $old, $reason);
+                }
+                $batch->recordRolledBack(\count($restored), \count($skipped));
+                $this->em->flush();
+            } finally {
+                $lock->release();
+            }
+            $this->memory->release();
+        }
+
+        $this->em->refresh($batch);
+        if (BatchStatus::RollingBack !== $batch->getStatus()) {
+            return;
+        }
+        $batch->markRolledBack();
+        $this->audit($batch, $actor, 'rolled back', sprintf('%d account(s) got their old number back; %d left alone because core changed since', $batch->getRolledBackAccountCount(), $batch->getRollbackSkippedCount()));
+        $this->em->flush();
+
+        if ($batch->getRollbackSkippedCount() > 0) {
+            $job = $this->reports->queueRollbackSkipped($batch, $actor, $this->rows->countRollback($batch)['skipped']);
+            $this->audit($batch, $actor, 'exports queued', sprintf('Export #%d (accounts not rolled back)', $job->getId()));
+            $this->em->flush();
+        }
+    }
+
+    /**
+     * One rollback chunk, inside the core transaction.
+     *
+     * @param array<string, string> $numbers old number => new number
+     *
+     * @return array{list<string>, array<string, string>} old numbers given back, and old number => why it was left alone
+     */
+    private function restoreChunk(array $numbers, string $actor): array
+    {
+        $current = $this->core->findAccounts(array_values($numbers), true);
+        $taken = array_flip($this->core->findUsedKeys(array_map('strval', array_keys($numbers)), true));
+        $restored = [];
+        $skipped = [];
+        foreach ($numbers as $old => $new) {
+            $old = (string) $old;
+            $records = $current[$new] ?? [];
+            $reason = match (true) {
+                [] === $records => sprintf('%s is no longer an account number in core.', $new),
+                \count($records) > 1 => sprintf('%s now matches %d core account records.', $new, \count($records)),
+                isset($taken[$old]) => sprintf('%s is in use by another account again.', $old),
+                $this->hasChangedLink($records[0]->links, $new, $old) => 'A card link changed since the replacement.',
+                default => null,
+            };
+            if (null !== $reason) {
+                $skipped[$old] = $reason;
+                continue;
+            }
+            $this->core->restoreAccount($records[0], $old, $actor);
+            $restored[] = $old;
+        }
+
+        return [$restored, $skipped];
+    }
+
+    /** @param list<\App\Core\CoreAccountLink> $links */
+    private function hasChangedLink(array $links, string $new, string $old): bool
+    {
+        foreach ($links as $link) {
+            if (null === LinkXml::revert($link->xml, $new, $old)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function stopRollingBack(MigrationBatch $batch, string $actor, \Throwable $e): void
+    {
+        $this->logger->error('Rolling back migration batch {id} failed: {message}', ['id' => $batch->getId(), 'message' => $e->getMessage(), 'exception' => $e]);
+        $reason = sprintf(
+            'Core update failed and was rolled back. Stopped after %d of %d account(s): those are done and the rest still have their new number. Fix the cause and resume the rollback.',
+            $batch->getRolledBackAccountCount() + $batch->getRollbackSkippedCount(), $batch->getAppliedAccountCount(),
+        );
+        $batch->stopRollingBack($reason);
+        $this->audit($batch, $actor, 'rollback halted', $reason);
+        $this->em->flush();
     }
 
     private function stopApplying(MigrationBatch $batch, string $actor, \Throwable $e): void

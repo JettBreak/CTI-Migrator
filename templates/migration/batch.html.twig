@@ -24,6 +24,9 @@
         {% if batch.status.value == 'importing' %}
             <h2>Validating rows</h2>
             <p>{{ batch.validatedRowCount|number_format }} of {{ batch.rowCount|number_format }} rows checked against core. This page refreshes every 5 seconds.</p>
+        {% elseif batch.status.value == 'rolling_back' %}
+            <h2>Rolling back: giving accounts their old numbers back</h2>
+            <p>{{ (batch.rolledBackAccountCount + batch.rollbackSkippedCount)|number_format }} of {{ batch.appliedAccountCount|number_format }} account(s) done ({{ batch.rollbackSkippedCount|number_format }} left alone because core changed since). Each chunk commits on its own. This page refreshes every 5 seconds.</p>
         {% else %}
             <h2>Replacing accounts in core</h2>
             <p>{{ batch.appliedAccountCount|number_format }} of {{ batch.accountCount|number_format }} account(s) replaced. Each chunk commits on its own. This page refreshes every 5 seconds.</p>
@@ -46,16 +49,24 @@
 
     {% if batch.status.value == 'invalid' %}
         <p class="exception"><span>!</span> {{ batch.invalidRowCount|number_format }} row(s) need correction. Correct them in your file and upload it again{% if batch.validRowCount > 0 %}, or proceed with the valid rows only: the rows that need correction are skipped{% endif %}.</p>
-    {% elseif batch.status.value in ['failed', 'halted'] %}
+    {% elseif batch.status.value in ['failed', 'halted', 'rollback_halted'] %}
         <p class="exception"><span>!</span> {{ batch.failureReason }}</p>
     {% elseif batch.status.value == 'rejected' and batch.reviewNote %}
         <p class="exception"><span>!</span> Rejection note: {{ batch.reviewNote }}</p>
-    {% elseif batch.status.value == 'processing' %}
+    {% elseif batch.status.value in ['processing', 'rolling_back'] %}
         <p class="exception"><span>!</span> If progress stops moving while the worker is on, check core and the logs before doing anything else with this batch.</p>
+    {% endif %}
+    {% if batch.status.value == 'rollback_requested' %}
+        <p class="exception notice"><span>i</span> Rollback requested by {{ batch.rollbackRequestedBy }} on {{ batch.rollbackRequestedAt|date('M j, Y H:i') }}: “{{ batch.rollbackReason }}”. Nothing changes in core until an approver approves it.</p>
+    {% elseif batch.status.value == 'rolled_back' %}
+        <p class="exception notice"><span>i</span> Rolled back {{ batch.processedAt|date('M j, Y H:i') }} (requested by {{ batch.rollbackRequestedBy }}, approved by {{ batch.rollbackReviewedBy }}): {{ batch.rolledBackAccountCount|number_format }} account(s) have their old number back.
+        {% if batch.rollbackSkippedCount > 0 %}{{ batch.rollbackSkippedCount|number_format }} account(s) were left on their new number because core changed since; they are listed with the reason on the <a href="{{ path('app_exports') }}">Exports</a> page.{% endif %}</p>
+    {% elseif batch.status.value in ['completed', 'halted'] and batch.rollbackReviewNote %}
+        <p class="exception"><span>!</span> Rollback request rejected by {{ batch.rollbackReviewedBy }}: {{ batch.rollbackReviewNote }}</p>
     {% endif %}
     {% if batch.skipsInvalidRows %}
         <p class="exception notice"><span>i</span> Valid rows only: {{ batch.invalidRowCount|number_format }} row(s) that need correction are skipped, together with the other rows of their accounts, and are not replaced.
-        {% if batch.status.value == 'completed' %}The migrated rows and the rows to correct are exported on the <a href="{{ path('app_exports') }}">Exports</a> page.{% else %}Once the replacement is done, two exports are queued on the Exports page: the migrated rows, and the rows to correct.{% endif %}</p>
+        {% if batch.status.value in ['completed', 'rollback_requested', 'rolling_back', 'rolled_back', 'rollback_halted'] %}The migrated rows and the rows to correct are exported on the <a href="{{ path('app_exports') }}">Exports</a> page.{% else %}Once the replacement is done, two exports are queued on the Exports page: the migrated rows, and the rows to correct.{% endif %}</p>
     {% endif %}
 
     <div class="review-actions">
@@ -115,6 +126,55 @@
             <p class="muted">An approver other than {{ batch.uploadedBy }} can resume this batch.</p>
         {% endif %}
 
+        {% if is_granted('BATCH_ROLLBACK_REQUEST', batch) %}
+            <form autocomplete="off" method="post" action="{{ path('app_batch_rollback_request', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Request a rollback of {{ batch.appliedAccountCount|number_format }} account(s)?"
+                  data-confirm-message-value="An approver other than you has to approve it. Then every account this batch replaced gets its old number back in core, and its card links are restored. Accounts that changed in core since the replacement are left alone and listed in an export."
+                  data-confirm-confirm-label-value="Request rollback"
+                  data-confirm-tone-value="danger">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <textarea name="reason" rows="1" placeholder="Reason for the rollback (required)" maxlength="1000" required></textarea>
+                <button class="button outline">↩ Request rollback</button>
+            </form>
+        {% endif %}
+
+        {% if is_granted('BATCH_ROLLBACK_REVIEW', batch) %}
+            <form autocomplete="off" method="post" action="{{ path('app_batch_rollback_approve', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Approve the rollback of {{ batch.appliedAccountCount|number_format }} account(s)?"
+                  data-confirm-message-value="Every account this batch replaced gets its old number back in core now, and each linked card follows. Accounts are rolled back in chunks, each checked against live data first; accounts that changed since are left alone and exported."
+                  data-confirm-confirm-label-value="Approve rollback"
+                  data-confirm-tone-value="danger">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <button class="button primary">↩ Approve rollback</button>
+            </form>
+            <form autocomplete="off" method="post" action="{{ path('app_batch_rollback_reject', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Reject the rollback request?"
+                  data-confirm-message-value="Nothing is changed in core; the batch stays as it is."
+                  data-confirm-confirm-label-value="Reject request">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <textarea name="note" rows="1" placeholder="Reason for rejecting (optional)" maxlength="1000"></textarea>
+                <button class="button outline">Reject rollback</button>
+            </form>
+        {% elseif batch.status.value == 'rollback_requested' %}
+            <p class="muted">Waiting for an approver other than {{ batch.rollbackRequestedBy }}.</p>
+        {% endif %}
+
+        {% if is_granted('BATCH_ROLLBACK_RESUME', batch) %}
+            <form autocomplete="off" method="post" action="{{ path('app_batch_rollback_resume', {id: batch.id}) }}"
+                  data-controller="confirm" data-action="submit->confirm#ask"
+                  data-confirm-title-value="Resume the rollback?"
+                  data-confirm-message-value="The accounts not dealt with yet are checked against live core data again and get their old numbers back. Accounts already rolled back are not touched."
+                  data-confirm-confirm-label-value="Resume rollback">
+                <input type="hidden" name="_token" value="{{ csrf_token('batch-action') }}">
+                <button class="button primary">↩ Resume rollback</button>
+            </form>
+        {% elseif batch.status.value == 'rollback_halted' %}
+            <p class="muted">An approver other than {{ batch.rollbackRequestedBy }} can resume the rollback.</p>
+        {% endif %}
+
         {% if batch.status.value in ['completed', 'halted'] %}
             <a class="button primary" href="{{ path('app_batch_report', {id: batch.id}) }}" data-turbo="false">⇩ Export migration report</a>
         {% endif %}
@@ -150,7 +210,11 @@
                     <td class="mono {{ row.valid ? 'good-cell' : '' }}">{{ row.newAccount }}</td>
                     <td>{{ row.linkedCards ?? '—' }}</td>
                     <td>
-                        {% if row.appliedAt %}
+                        {% if row.rolledBackAt %}
+                            <span class="validation-status">↩ Rolled back</span>
+                        {% elseif row.rollbackError %}
+                            <ul class="row-errors"><li>Not rolled back: {{ row.rollbackError }}</li></ul>
+                        {% elseif row.appliedAt %}
                             <span class="validation-status verified">✓ Replaced</span>
                         {% elseif row.valid %}
                             <span class="validation-status verified">✓ Ready to replace</span>

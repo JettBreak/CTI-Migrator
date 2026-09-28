@@ -29,4 +29,21 @@ final class LinkXml
 
         return $count > 0 ? $replaced : $xml.$oldTag;
     }
+
+    /**
+     * Undoes migrate() for a rollback: the link XML with <ACCTNO> back on $restoredAccountNo and the
+     * <OLDACCTNO> tag migrate() wrote removed. Null when the XML is no longer exactly what migrate()
+     * left (the link changed since), so it must not be touched.
+     *
+     * Before this tool, core's links carried no <OLDACCTNO>, so removing it restores them exactly.
+     */
+    public static function revert(string $xml, string $currentAccountNo, string $restoredAccountNo): ?string
+    {
+        $oldTag = '<OLDACCTNO>'.$restoredAccountNo.'</>';
+        if (1 !== substr_count($xml, self::accountTag($currentAccountNo)) || 1 !== substr_count($xml, $oldTag)) {
+            return null;
+        }
+
+        return str_replace([self::accountTag($currentAccountNo), $oldTag], [self::accountTag($restoredAccountNo), ''], $xml);
+    }
 }

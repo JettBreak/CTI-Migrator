@@ -131,7 +131,8 @@ class MigrationRowRepository extends ServiceEntityRepository
     /**
      * Streams the batch's rows in file order, a chunk at a time, detaching each chunk once consumed.
      *
-     * @param 'invalid'|'pending'|'applied'|null $filter rows needing correction, rows not renamed in core yet, or rows renamed
+     * @param 'invalid'|'pending'|'applied'|'rollback_skipped'|null $filter rows needing correction, rows not renamed in core
+     *                                                            yet, rows renamed, or rows a rollback left alone
      *
      * @return \Generator<MigrationRow>
      */
@@ -148,6 +149,7 @@ class MigrationRowRepository extends ServiceEntityRepository
                 'invalid' => $query->andWhere('r.valid = false'),
                 'pending' => $query->andWhere('r.appliedAt IS NULL'),
                 'applied' => $query->andWhere('r.appliedAt IS NOT NULL'),
+                'rollback_skipped' => $query->andWhere('r.rollbackError IS NOT NULL'),
                 null => null,
             };
             $rows = $query->getQuery()->getResult();
@@ -209,6 +211,86 @@ class MigrationRowRepository extends ServiceEntityRepository
             ->setParameter('batch', $batch)
             ->setParameter('accounts', $accounts)
             ->execute();
+    }
+
+    /**
+     * The next $limit replaced accounts (by their old number, in order) a rollback has not dealt with yet.
+     *
+     * @return list<string>
+     */
+    public function nextRollbackAccounts(MigrationBatch $batch, int $limit): array
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $sql = $connection->getDatabasePlatform()->modifyLimitQuery(
+            'SELECT DISTINCT current_account FROM migration_row
+             WHERE batch_id = ? AND rolled_back_at IS NULL AND applied_at IS NOT NULL AND rollback_error IS NULL ORDER BY current_account',
+            $limit,
+        );
+
+        return array_map('strval', $connection->fetchFirstColumn($sql, [$batch->getId()]));
+    }
+
+    /**
+     * @param list<string> $accounts old numbers
+     *
+     * @return array<string, string> old number => the new number the batch gave it
+     */
+    public function replacedNumbers(MigrationBatch $batch, array $accounts): array
+    {
+        return array_map('strval', $this->getEntityManager()->getConnection()->fetchAllKeyValue(
+            'SELECT DISTINCT current_account, new_account FROM migration_row WHERE batch_id = ? AND applied_at IS NOT NULL AND current_account IN (?)',
+            [$batch->getId(), $accounts],
+            [ParameterType::INTEGER, ArrayParameterType::STRING],
+        ));
+    }
+
+    /**
+     * @param list<string> $accounts old numbers given back in core
+     *
+     * @return int rows marked
+     */
+    public function markRolledBack(MigrationBatch $batch, array $accounts, \DateTimeImmutable $at): int
+    {
+        if ([] === $accounts) {
+            return 0;
+        }
+
+        return $this->getEntityManager()->createQuery(
+            'UPDATE '.MigrationRow::class.' r SET r.rolledBackAt = :at
+             WHERE r.batch = :batch AND r.appliedAt IS NOT NULL AND r.rolledBackAt IS NULL AND r.currentAccount IN (:accounts)',
+        )
+            ->setParameter('at', $at, Types::DATETIME_IMMUTABLE)
+            ->setParameter('batch', $batch)
+            ->setParameter('accounts', $accounts)
+            ->execute();
+    }
+
+    /** Records why a rollback left $account alone (on each of its replaced rows). */
+    public function markRollbackSkipped(MigrationBatch $batch, string $account, string $reason): void
+    {
+        $this->getEntityManager()->createQuery(
+            'UPDATE '.MigrationRow::class.' r SET r.rollbackError = :reason
+             WHERE r.batch = :batch AND r.appliedAt IS NOT NULL AND r.currentAccount = :account',
+        )
+            ->setParameter('reason', mb_substr($reason, 0, 255))
+            ->setParameter('batch', $batch)
+            ->setParameter('account', $account)
+            ->execute();
+    }
+
+    /**
+     * Rows a rollback gave their old number back, and rows it left alone.
+     *
+     * @return array{restored: int, skipped: int}
+     */
+    public function countRollback(MigrationBatch $batch): array
+    {
+        [$restored, $skipped] = $this->getEntityManager()->getConnection()->fetchNumeric(
+            'SELECT COALESCE(SUM(rolled_back_at IS NOT NULL), 0), COALESCE(SUM(rollback_error IS NOT NULL), 0) FROM migration_row WHERE batch_id = ?',
+            [$batch->getId()],
+        );
+
+        return ['restored' => (int) $restored, 'skipped' => (int) $skipped];
     }
 
     /**

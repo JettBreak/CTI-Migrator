@@ -21,6 +21,8 @@ final class InMemoryCoreAccountGateway implements CoreAccountGateway
     public array $links = [];
     /** @var list<array{from: string, to: string, user: string}> */
     public array $renames = [];
+    /** @var list<array{from: string, to: string, user: string}> rollbacks, like $renames */
+    public array $restores = [];
     private bool $inTransaction = false;
 
     public function __construct()
@@ -55,12 +57,12 @@ final class InMemoryCoreAccountGateway implements CoreAccountGateway
 
     public function transactional(callable $work): mixed
     {
-        $snapshot = [$this->accounts, $this->links, $this->renames];
+        $snapshot = [$this->accounts, $this->links, $this->renames, $this->restores];
         $this->inTransaction = true;
         try {
             return $work();
         } catch (\Throwable $e) {
-            [$this->accounts, $this->links, $this->renames] = $snapshot;
+            [$this->accounts, $this->links, $this->renames, $this->restores] = $snapshot;
             throw $e;
         } finally {
             $this->inTransaction = false;
@@ -140,5 +142,24 @@ final class InMemoryCoreAccountGateway implements CoreAccountGateway
         }
         unset($link);
         $this->renames[] = ['from' => $account->accountNo, 'to' => $newAccountNo, 'user' => $user];
+    }
+
+    public function restoreAccount(CoreAccount $account, string $restoredAccountNo, string $user): void
+    {
+        if (!$this->inTransaction) {
+            throw new \LogicException('restoreAccount() must run inside transactional().');
+        }
+        if (($this->accounts[$account->seq]['no'] ?? null) !== $account->accountNo) {
+            throw new \RuntimeException(sprintf('Expected to rename 1 prmaster row for account seq %d, changed 0.', $account->seq));
+        }
+        $this->accounts[$account->seq]['no'] = $restoredAccountNo;
+        foreach ($this->links as &$link) {
+            if ($link['account'] === $account->seq) {
+                $link['xml'] = LinkXml::revert($link['xml'], $account->accountNo, $restoredAccountNo)
+                    ?? throw new \RuntimeException(sprintf('Card link of account seq %d changed since it was replaced.', $account->seq));
+            }
+        }
+        unset($link);
+        $this->restores[] = ['from' => $account->accountNo, 'to' => $restoredAccountNo, 'user' => $user];
     }
 }

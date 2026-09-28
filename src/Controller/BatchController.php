@@ -139,6 +139,47 @@ final class BatchController extends AbstractController
         return $this->act($batch, fn (string $user) => $this->workflow->reject($batch, $user, $note ? mb_substr($note, 0, 1000) : null), 'Batch rejected.');
     }
 
+    #[Route('/batches/{id}/rollback', name: 'app_batch_rollback_request', methods: ['POST'])]
+    #[IsCsrfTokenValid('batch-action')]
+    #[IsGranted(BatchVoter::ROLLBACK_REQUEST, 'batch')]
+    public function requestRollback(MigrationBatch $batch, Request $request): Response
+    {
+        $reason = trim((string) $request->getPayload()->get('reason'));
+        if ('' === $reason) {
+            $this->addFlash('error', 'Give a reason for the rollback.');
+
+            return $this->redirectToRoute('app_batch_show', ['id' => $batch->getId()], Response::HTTP_SEE_OTHER);
+        }
+
+        return $this->act($batch, fn (string $user) => $this->workflow->requestRollback($batch, $user, mb_substr($reason, 0, 1000)), 'Rollback requested. An approver has to approve it before anything changes in core.');
+    }
+
+    #[Route('/batches/{id}/rollback/approve', name: 'app_batch_rollback_approve', methods: ['POST'])]
+    #[IsCsrfTokenValid('batch-action')]
+    #[IsGranted(BatchVoter::ROLLBACK_REVIEW, 'batch')]
+    public function approveRollback(MigrationBatch $batch): Response
+    {
+        return $this->act($batch, fn (string $user) => $this->workflow->approveRollback($batch, $user), 'Rollback done: the replaced accounts have their old numbers back.');
+    }
+
+    #[Route('/batches/{id}/rollback/reject', name: 'app_batch_rollback_reject', methods: ['POST'])]
+    #[IsCsrfTokenValid('batch-action')]
+    #[IsGranted(BatchVoter::ROLLBACK_REVIEW, 'batch')]
+    public function rejectRollback(MigrationBatch $batch, Request $request): Response
+    {
+        $note = trim((string) $request->getPayload()->get('note')) ?: null;
+
+        return $this->act($batch, fn (string $user) => $this->workflow->rejectRollback($batch, $user, $note ? mb_substr($note, 0, 1000) : null), 'Rollback rejected; nothing was changed in core.');
+    }
+
+    #[Route('/batches/{id}/rollback/resume', name: 'app_batch_rollback_resume', methods: ['POST'])]
+    #[IsCsrfTokenValid('batch-action')]
+    #[IsGranted(BatchVoter::ROLLBACK_RESUME, 'batch')]
+    public function resumeRollback(MigrationBatch $batch): Response
+    {
+        return $this->act($batch, fn (string $user) => $this->workflow->resumeRollback($batch, $user), 'Rollback resumed and finished.');
+    }
+
     #[Route('/batches/{id}/report.csv', name: 'app_batch_report', methods: ['GET'])]
     public function report(MigrationBatch $batch, MigrationRowRepository $rows, CsvResponseFactory $csv): Response
     {
@@ -182,8 +223,12 @@ final class BatchController extends AbstractController
         try {
             $action($this->getUser()->getUserIdentifier());
             match ($batch->getStatus()) {
-                BatchStatus::Failed, BatchStatus::Halted => $this->addFlash('error', $batch->getFailureReason() ?? 'The batch could not be applied.'),
+                BatchStatus::Failed, BatchStatus::Halted, BatchStatus::RollbackHalted => $this->addFlash('error', $batch->getFailureReason() ?? 'The batch could not be applied.'),
                 BatchStatus::Processing => $this->addFlash('success', sprintf('Batch approved. %s account(s) are being replaced in core in the background; this page shows the progress.', number_format($batch->accountCount() - $batch->getAppliedAccountCount()))),
+                BatchStatus::RollingBack => $this->addFlash('success', sprintf('Rollback approved. %s account(s) are getting their old numbers back in the background; this page shows the progress.', number_format($batch->getAppliedAccountCount() - $batch->getRolledBackAccountCount() - $batch->getRollbackSkippedCount()))),
+                BatchStatus::RolledBack => $this->addFlash('success', $batch->getRollbackSkippedCount() > 0
+                    ? sprintf('Rollback done: %s account(s) have their old number back; %s were left alone because core changed since (see the Exports page).', number_format($batch->getRolledBackAccountCount()), number_format($batch->getRollbackSkippedCount()))
+                    : $success),
                 default => $this->addFlash('success', $success),
             };
         } catch (BatchLocked $e) {
