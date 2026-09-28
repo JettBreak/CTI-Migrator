@@ -34,21 +34,23 @@ final class MigrationController extends AbstractController
     }
 
     #[Route('/cards', name: 'app_cards', methods: ['GET'])]
-    public function cards(#[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?string $status = null): Response
+    public function cards(#[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?string $status = null, #[MapQueryParameter] ?string $q = null): Response
     {
         $status = $this->normaliseStatus($status);
-        $result = $this->data->cardPage(max(1, $page), self::PER_PAGE, $status);
+        $q = $this->normaliseStatus($q);
+        $result = $this->data->cardPage(max(1, $page), self::PER_PAGE, $status, $q);
 
-        return $this->renderList('cards', 'Card directory', 'Cardholder and linked account records', $page, $status, $result, $this->data->statusCounts('CARD') ?? []);
+        return $this->renderList('cards', 'Card directory', 'Cardholder and linked account records', $page, $status, $result, $this->data->statusCounts('CARD') ?? [], $q);
     }
 
     #[Route('/accounts', name: 'app_accounts', methods: ['GET'])]
-    public function accounts(#[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?string $status = null): Response
+    public function accounts(#[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?string $status = null, #[MapQueryParameter] ?string $q = null): Response
     {
         $status = $this->normaliseStatus($status);
-        $result = $this->data->accountPage(max(1, $page), self::PER_PAGE, $status);
+        $q = $this->normaliseStatus($q);
+        $result = $this->data->accountPage(max(1, $page), self::PER_PAGE, $status, $q);
 
-        return $this->renderList('accounts', 'Account directory', 'Customer account records', $page, $status, $result, $this->data->statusCounts('ACCT') ?? []);
+        return $this->renderList('accounts', 'Account directory', 'Customer account records', $page, $status, $result, $this->data->statusCounts('ACCT') ?? [], $q);
     }
 
     private function normaliseStatus(?string $status): ?string
@@ -62,7 +64,7 @@ final class MigrationController extends AbstractController
      * @param array{rows: list<array<string, string>>, total: int} $result
      * @param array<string, int>                                   $statuses
      */
-    private function renderList(string $type, string $title, string $subtitle, int $page, ?string $status, array $result, array $statuses): Response
+    private function renderList(string $type, string $title, string $subtitle, int $page, ?string $status, array $result, array $statuses, ?string $q = null): Response
     {
         $pageCount = max(1, (int) ceil($result['total'] / self::PER_PAGE));
 
@@ -71,6 +73,7 @@ final class MigrationController extends AbstractController
             'page' => min(max(1, $page), $pageCount), 'page_count' => $pageCount,
             'total' => $result['total'], 'per_page' => self::PER_PAGE,
             'status' => $status, 'statuses' => $statuses,
+            'q' => $q, 'search_timed_out' => $result['search_timed_out'] ?? false,
         ]);
     }
 }

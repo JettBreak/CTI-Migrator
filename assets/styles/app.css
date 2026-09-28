@@ -117,3 +117,5 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .sidebar>:not(.sidebar-stars){position:relative;z-index:1}
 .sidebar nav a.active,.sidebar nav a:hover{background:rgba(48,104,219,.28);box-shadow:inset 0 0 0 1px rgba(143,192,255,.14)}
 .sidebar-footer{border-top-color:rgba(143,192,255,.18)}
+/* Directory search is a real form now; room for its longer hint */
+form.search{margin:0;width:min(420px,100%)}form.search input{width:calc(100% - 22px)}

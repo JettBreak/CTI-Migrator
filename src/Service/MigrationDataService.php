@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Migration\MaskedCard;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\ParameterType;
@@ -20,6 +21,9 @@ final class MigrationDataService
      * request at a time, so an unbounded count would hold up every page.
      */
     private const COUNT_TIME_LIMIT = '/*+ MAX_EXECUTION_TIME(20000) */';
+    /** Directory search: at most this many matching records, found by indexed lookups each stopped after 10 s. */
+    private const SEARCH_LIMIT = 2000;
+    private const SEARCH_TIME_LIMIT = '/*+ MAX_EXECUTION_TIME(10000) */';
 
     /** prmaster rows of one prtype with their status label; %s receives extra WHERE conditions. */
     private const RECORDS_SQL = <<<'SQL'
@@ -78,27 +82,35 @@ final class MigrationDataService
     ) {
     }
 
-    /** @return array{rows: list<array<string, string>>, total: int} */
-    public function cardPage(int $page, int $perPage = 25, ?string $status = null): array
+    /**
+     * @param ?string $search customer name, customer ID, account number (or its start) or card ref; see searchIds()
+     *
+     * @return array{rows: list<array<string, string>>, total: int, search_timed_out?: bool}
+     */
+    public function cardPage(int $page, int $perPage = 25, ?string $status = null, ?string $search = null): array
     {
         $offset = (max(1, $page) - 1) * $perPage;
 
         if ('test' === $this->environment) {
-            $rows = array_map($this->formatCardRow(...), $this->filterFixtures($this->fixtureCards(), $status));
+            $rows = array_map($this->formatCardRow(...), $this->filterFixtures($this->fixtureCards(), $status, $search));
 
             return ['rows' => array_slice($rows, $offset, $perPage), 'total' => count($rows)];
         }
 
-        [$from, $params] = $this->records('CARD', $status);
+        $ids = null === $search ? null : $this->withinTimeLimit(fn () => $this->searchIds('CARD', $search));
+        if (null !== $search && null === $ids) {
+            return ['rows' => [], 'total' => 0, 'search_timed_out' => true];
+        }
+        [$from, $params, $types] = $this->records('CARD', $status, ids: $ids);
         $rows = $this->coreappConnection->fetchAllAssociative(
             sprintf(self::CARD_SQL, $from, 'LIMIT :limit OFFSET :offset', self::STATUS_LABEL),
             $params + ['limit' => $perPage, 'offset' => $offset],
-            ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
+            $types + ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
         );
 
         return [
             'rows' => array_map($this->formatCardRow(...), $rows),
-            'total' => (int) $this->coreappConnection->fetchOne('SELECT COUNT(*) '.$from, $params),
+            'total' => (int) $this->coreappConnection->fetchOne('SELECT COUNT(*) '.$from, $params, $types),
         ];
     }
 
@@ -148,26 +160,34 @@ final class MigrationDataService
         }
     }
 
-    /** @return array{rows: list<array<string, string>>, total: int} */
-    public function accountPage(int $page, int $perPage = 25, ?string $status = null): array
+    /**
+     * @param ?string $search customer name, customer ID or account number (or its start); see searchIds()
+     *
+     * @return array{rows: list<array<string, string>>, total: int, search_timed_out?: bool}
+     */
+    public function accountPage(int $page, int $perPage = 25, ?string $status = null, ?string $search = null): array
     {
         $offset = (max(1, $page) - 1) * $perPage;
 
         if ('test' === $this->environment) {
-            $rows = $this->filterFixtures($this->fixtureAccounts(), $status);
+            $rows = $this->filterFixtures($this->fixtureAccounts(), $status, $search);
 
             return ['rows' => array_slice($rows, $offset, $perPage), 'total' => count($rows)];
         }
 
-        [$from, $params] = $this->records('ACCT', $status);
+        $ids = null === $search ? null : $this->withinTimeLimit(fn () => $this->searchIds('ACCT', $search));
+        if (null !== $search && null === $ids) {
+            return ['rows' => [], 'total' => 0, 'search_timed_out' => true];
+        }
+        [$from, $params, $types] = $this->records('ACCT', $status, ids: $ids);
 
         return [
             'rows' => $this->coreappConnection->fetchAllAssociative(
                 sprintf(self::ACCOUNT_SQL, self::STATUS_LABEL, $from),
                 $params + ['limit' => $perPage, 'offset' => $offset],
-                ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
+                $types + ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
             ),
-            'total' => (int) $this->coreappConnection->fetchOne('SELECT COUNT(*) '.$from, $params),
+            'total' => (int) $this->coreappConnection->fetchOne('SELECT COUNT(*) '.$from, $params, $types),
         ];
     }
 
@@ -249,14 +269,22 @@ final class MigrationDataService
 
     /**
      * FROM/WHERE clause selecting prmaster rows of $prtype, optionally only those with status label
-     * $status and prseqno below $before.
+     * $status, prseqno below $before, and prseqno in $ids (search matches; an empty list matches nothing).
      *
-     * @return array{string, array<string, string|int>}
+     * @param list<int>|null $ids
+     *
+     * @return array{string, array<string, mixed>, array<string, ArrayParameterType>}
      */
-    private function records(string $prtype, ?string $status, ?int $before = null): array
+    private function records(string $prtype, ?string $status, ?int $before = null, ?array $ids = null): array
     {
         $params = ['prtype' => $prtype];
+        $types = [];
         $condition = '';
+        if (null !== $ids) {
+            $condition .= [] === $ids ? ' AND 1 = 0' : ' AND p.prseqno IN (:ids)';
+            $params['ids'] = $ids;
+            $types['ids'] = ArrayParameterType::INTEGER;
+        }
         if (null !== $status) {
             $condition .= ' AND '.self::STATUS_LABEL.' = :status';
             $params['status'] = $status;
@@ -266,7 +294,68 @@ final class MigrationDataService
             $params['before'] = $before;
         }
 
-        return [sprintf(self::RECORDS_SQL, $condition), $params];
+        return [sprintf(self::RECORDS_SQL, $condition), $params, $types];
+    }
+
+    /**
+     * prseqnos of the $prtype records a directory search matches, using only indexed lookups (core has
+     * hundreds of thousands of records): digits match an account number's start, a customer ID, or
+     * (cards) a card ref; words match customer names ("JOSE EBRON": first name JOSE… and last name
+     * EBRON…, either way round; one word: first or last name starting with it). Card numbers cannot be
+     * searched: core only keeps them as tokens.
+     *
+     * @return list<int> at most SEARCH_LIMIT
+     */
+    private function searchIds(string $prtype, string $search): array
+    {
+        $core = $this->coreappConnection;
+        $limit = ' LIMIT '.self::SEARCH_LIMIT;
+        $ids = [];
+
+        $digits = (string) preg_replace('/[\s-]+/', '', $search);
+        if ('' !== $digits && ctype_digit($digits)) {
+            $accounts = array_map('intval', $core->fetchFirstColumn(
+                'SELECT '.self::SEARCH_TIME_LIMIT." prseqno FROM prmaster WHERE prkey LIKE ? AND prtype = 'ACCT'".$limit,
+                [$digits.'%'],
+            ));
+            if ('ACCT' === $prtype) {
+                $ids = $accounts;
+            } elseif ([] !== $accounts) {
+                $ids = array_map('intval', $core->fetchFirstColumn(
+                    'SELECT '.self::SEARCH_TIME_LIMIT." DISTINCT prseqno FROM prlinkxx WHERE prtype = 'ACCT' AND pseqnolink IN (?)".$limit,
+                    [$accounts], [ArrayParameterType::INTEGER],
+                ));
+            }
+            if (\strlen($digits) <= 18) { // customer IDs and card refs are integers
+                $ids = [...$ids, ...array_map('intval', $core->fetchFirstColumn(
+                    'SELECT '.self::SEARCH_TIME_LIMIT.' prseqno FROM prmaster WHERE prtype = ? AND cifseqno = ?'.$limit,
+                    [$prtype, (int) $digits], [ParameterType::STRING, ParameterType::INTEGER],
+                ))];
+                if ('CARD' === $prtype) {
+                    $ids = [...$ids, ...array_map('intval', $core->fetchFirstColumn(
+                        "SELECT prseqno FROM prmaster WHERE prseqno = ? AND prtype = 'CARD'", [(int) $digits], [ParameterType::INTEGER],
+                    ))];
+                }
+            }
+        } else {
+            $words = preg_split('/\s+/', trim($search));
+            $like = static fn (string $word): string => addcslashes($word, '%_\\').'%';
+            [$first, $last] = [$like($words[0]), $like($words[\count($words) - 1])];
+            $customers = array_map('intval', 1 === \count($words)
+                ? $core->fetchFirstColumn('SELECT '.self::SEARCH_TIME_LIMIT.' cifseqno FROM customer WHERE lastname LIKE ? OR firstname LIKE ?'.$limit, [$first, $first])
+                : $core->fetchFirstColumn(
+                    'SELECT '.self::SEARCH_TIME_LIMIT.' cifseqno FROM customer WHERE (firstname LIKE ? AND lastname LIKE ?) OR (lastname LIKE ? AND firstname LIKE ?)'.$limit,
+                    [$first, $last, $first, $last],
+                ));
+            if ([] !== $customers) {
+                $ids = array_map('intval', $core->fetchFirstColumn(
+                    'SELECT '.self::SEARCH_TIME_LIMIT.' prseqno FROM prmaster WHERE prtype = ? AND cifseqno IN (?)'.$limit,
+                    [$prtype, $customers], [ParameterType::STRING, ArrayParameterType::INTEGER],
+                ));
+            }
+        }
+
+        return \array_slice(array_values(array_unique($ids)), 0, self::SEARCH_LIMIT);
     }
 
     /** A worker process can sit idle for hours; MySQL drops idle connections, so start fresh if it did. */
@@ -284,9 +373,10 @@ final class MigrationDataService
      *
      * @return list<array<string, string>>
      */
-    private function filterFixtures(array $rows, ?string $status): array
+    private function filterFixtures(array $rows, ?string $status, ?string $search = null): array
     {
-        return null === $status ? $rows : array_values(array_filter($rows, static fn (array $row) => $row['status'] === $status));
+        return array_values(array_filter($rows, static fn (array $row) => (null === $status || $row['status'] === $status)
+            && (null === $search || [] !== array_filter($row, static fn (string $value) => false !== mb_stripos($value, $search)))));
     }
 
     /**

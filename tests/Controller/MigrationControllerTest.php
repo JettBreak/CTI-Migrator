@@ -76,6 +76,25 @@ final class MigrationControllerTest extends AppTestCase
         }
     }
 
+    public function testDirectoriesCanBeSearchedAndKeepTheSearchAcrossFilters(): void
+    {
+        $crawler = $this->client->request('GET', '/cards?q=santos');
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('tbody tr'));
+        self::assertSelectorTextContains('tbody', 'Maria L. Santos');
+        self::assertInputValueSame('q', 'santos');
+        // The status filter carries the search, and the status keeps it in the search form.
+        self::assertSelectorExists('form.filter input[type="hidden"][name="q"][value="santos"]');
+
+        $crawler = $this->client->request('GET', '/accounts?q=009713450');
+        self::assertCount(1, $crawler->filter('tbody tr'));
+        self::assertSelectorTextContains('tbody', 'Jonathan D. Cruz');
+
+        $this->client->request('GET', '/accounts?q=nobody&status=Active');
+        self::assertSelectorTextContains('tbody', 'No records matching “nobody” with status “Active”');
+        self::assertSelectorExists('form.search input[type="hidden"][name="status"][value="Active"]');
+    }
+
     public function testNonGetRequestsAreRejected(): void
     {
         $this->client->request('POST', '/cards');
