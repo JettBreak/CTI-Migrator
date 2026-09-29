@@ -23,7 +23,7 @@
         {% if status.locked %}
         {# The lock replaces the sign-in form; only the super user can lift it. #}
         {{ include('security/_system_locked_badge.html.twig') }}
-        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Migration control<br>is locked</h1>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Data migration<br>is locked</h1>
         <div class="w-full max-w-sm space-y-4">
             <p class="text-sm leading-6" style="color:#87a4d4">Sign-in is closed for every account until the super user unlocks the system.</p>
             {% if status.reason and not status.tampered %}
@@ -32,7 +32,7 @@
             <a href="{{ path('app_system_unlock') }}" class="button primary w-full h-12" style="margin:8px 0 0">Unlock</a>
         </div>
         {% else %}
-        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>migration control</h1>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>data migration</h1>
         <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation" data-action="field-validation#validate page-loader#show">
             <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
             {% if error %}

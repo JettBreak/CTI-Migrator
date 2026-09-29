@@ -32,7 +32,7 @@
     {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
     <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
     {% set route = app.request.attributes.get('_route') %}
-    <a class="brand" href="{{ path('app_home') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>migration control</small></span></a>
+    <a class="brand" href="{{ path('app_home') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>data migration</small></span></a>
     <nav>
         {% if is_granted('ROLE_MIGRATION_OFFICER') %}
         <a href="{{ path('app_dashboard') }}" class="{{ route == 'app_dashboard' ? 'active' }}"><span>▦</span> Overview</a>
@@ -72,7 +72,7 @@
         {# Timed system lock set by the super user (see App\Security\SystemLock) #}
         <div class="lock-banner{{ system_lock_status.daysLeft <= 3 ? ' urgent' }}" role="status">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            <span>Access to migration control ends on <b>{{ system_lock_status.locksAt|date('M j, Y H:i') }}</b> · {{ system_lock_status.daysLeft }} day{{ system_lock_status.daysLeft == 1 ? '' : 's' }} left</span>
+            <span>Access to data migration ends on <b>{{ system_lock_status.locksAt|date('M j, Y H:i') }}</b> · {{ system_lock_status.daysLeft }} day{{ system_lock_status.daysLeft == 1 ? '' : 's' }} left</span>
         </div>
     {% endif %}
     {% for type, messages in app.flashes(['success', 'error']) %}{% for message in messages %}<div class="flash {{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
