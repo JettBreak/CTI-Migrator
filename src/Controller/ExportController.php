@@ -7,6 +7,7 @@ use App\Enum\ExportState;
 use App\Message\GenerateCardExport;
 use App\Repository\ExportJobRepository;
 use App\Service\CardExport;
+use App\Worker\QueueInspector;
 use App\Worker\WorkerSupervisor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -50,12 +51,14 @@ final class ExportController extends AbstractController
     }
 
     #[Route('', name: 'app_exports', methods: ['GET'])]
-    public function index(WorkerSupervisor $worker): Response
+    public function index(WorkerSupervisor $worker, QueueInspector $queue): Response
     {
         $jobs = $this->jobs->findRecent();
 
         return $this->render('export/index.html.twig', [
             'worker_on' => $worker->isRunning(),
+            // Queued exports a stopped worker took and never started: job id => when they are retried.
+            'held' => $queue->heldExports(),
             'jobs' => $jobs,
             // Job id => whether its file can be downloaded right now.
             'available' => array_combine(array_map(static fn (ExportJob $j) => $j->getId(), $jobs), array_map($this->export->isAvailable(...), $jobs)),

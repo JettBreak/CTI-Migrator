@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Enum\ExportState;
 use App\Repository\ExportJobRepository;
 use App\Service\ExportCleaner;
+use App\Worker\QueueInspector;
 use App\Worker\WorkerSupervisor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,11 +26,13 @@ final class WorkerController extends AbstractController
     }
 
     #[Route('', name: 'app_worker', methods: ['GET'])]
-    public function index(ExportJobRepository $jobs): Response
+    public function index(ExportJobRepository $jobs, QueueInspector $queue): Response
     {
         return $this->render('worker/index.html.twig', [
             'worker' => $this->supervisor->status(),
             'queued' => $jobs->countInState(ExportState::Queued),
+            // Queued exports a stopped worker took and never started: export id => when they are retried.
+            'held' => $queue->heldExports(),
             'running' => $jobs->countInState(ExportState::Running),
             'usage' => $this->cleaner->usage(),
             'retention' => $this->cleaner->retention(),

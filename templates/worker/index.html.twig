@@ -49,6 +49,9 @@
     {% elseif worker.state == 'stopped' and queued > 0 %}
         <p class="exception"><span>!</span> {{ queued }} export(s) are waiting. They start as soon as the worker is on.</p>
     {% endif %}
+    {% for id, retry_at in held %}
+        <p class="exception notice"><span>i</span> Export #{{ id }} was taken by a worker that stopped before starting it. The queue hands it out again at {{ retry_at|date('H:i') }}{{ retry_at|date('Y-m-d') != 'now'|date('Y-m-d') ? ' on ' ~ retry_at|date('M j') }}, and the worker then prepares it. To get the file sooner, request the export again.</p>
+    {% endfor %}
 
     <dl class="facts">
         <div><dt>Process</dt><dd>{{ worker.pid ? 'PID ' ~ worker.pid : '—' }}</dd></div>
@@ -57,7 +60,7 @@
         <div><dt>Now doing</dt><dd>{{ hb and hb.current ? hb.current.message ~ ' (since ' ~ hb.current.since|date('H:i:s') ~ ')' : (worker.state == 'running' ? 'Idle' : '—') }}</dd></div>
         <div><dt>Jobs handled</dt><dd>{{ hb ? hb.handled : 0 }}{% if hb and hb.failed %} · <span class="text-red-700 dark:text-red-400">{{ hb.failed }} failed</span>{% endif %}</dd></div>
         <div><dt>Last job</dt><dd>{{ hb and hb.last ? hb.last.message ~ ' at ' ~ hb.last.at|date('M j, H:i:s') : '—' }}</dd></div>
-        <div><dt>Queue</dt><dd>{{ queued }} export(s) waiting · {{ running }} running</dd></div>
+        <div><dt>Queue</dt><dd>{{ queued }} export(s) waiting · {{ running }} running{% if held %}<small class="block muted">{{ held|length }} held by a stopped worker, retried at {{ held|map(t => t|date('H:i'))|join(', ') }}</small>{% endif %}</dd></div>
         <div><dt>Last switched</dt><dd>
             {% if worker.stop and (not worker.launch or worker.stop.at > worker.launch.at) %}off by {{ worker.stop.by }} at {{ worker.stop.at|date('M j, H:i') }}
             {% elseif worker.launch %}on by {{ worker.launch.by }} at {{ worker.launch.at|date('M j, H:i') }}
