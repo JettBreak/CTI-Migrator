@@ -26,13 +26,40 @@
     /* Header and footer sit directly on the space scene, with light text */
     .login-bar{position:relative;z-index:1;border:0;background:transparent}
     header.login-bar{height:auto}
+
+    /* Fit the window without a scrollbar: spacing and type scale with the window height (vh), so the
+       page fits common laptop and desktop screens. A window too short for it still scrolls (wheel,
+       keyboard, touch) with the scrollbar hidden, rather than cutting off the form. */
+    html:has(body.login-page){height:100%;overflow:hidden}
+    body.login-page{height:100vh;height:100dvh;min-height:0;overflow-y:auto;scrollbar-width:none}
+    body.login-page::-webkit-scrollbar{display:none}
+    .login-page header.login-bar{padding-block:clamp(8px,2.2vh,20px)}
+    .login-page .brand-logo{width:clamp(30px,5.2vh,50px);height:clamp(30px,5.2vh,50px)}
+    .login-page .brand-name{font-size:clamp(17px,3vh,28px)}
+    /* Grows to fill the window, but never shrinks below its content (the page scrolls instead). */
+    .login-page>main{padding-block:clamp(6px,2.4vh,40px);flex:1 0 auto;min-height:auto!important}
+    .login-page>main h1{font-size:clamp(26px,5vh,48px);margin-bottom:clamp(6px,1.4vh,16px)}
+    .login-page>main .mb-5{margin-bottom:clamp(8px,1.8vh,20px)}
+    .login-page>main .space-y-4>:not([hidden])~:not([hidden]){margin-top:clamp(6px,1.4vh,16px)}
+    .login-page>main label>input:not([type=radio]),.login-page>main label>textarea{padding-block:clamp(5px,1vh,10px);margin-top:clamp(3px,.6vh,6px)}
+    .login-page>main .button.h-12{height:clamp(36px,5vh,48px)}
+    .login-page .lock-choice{min-height:clamp(32px,4.4vh,40px)}
+    .login-page .login-safeguards{padding-bottom:clamp(6px,2.4vh,32px)}
+    .login-page .login-safeguards>ul{padding-top:clamp(8px,2vh,24px)}
+    .login-page>footer.login-bar{padding-block:clamp(5px,1.4vh,16px)}
+    /* Short windows: the safeguards keep only their titles, then give way to the form. */
+    @media (max-height:820px){.login-page .login-safeguards li span.block{display:none}}
+    @media (max-height:680px){.login-page .login-safeguards{display:none}}
+    /* Super user name and password side by side where there is room. */
+    .cred-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    @media (max-width:480px){.cred-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 {% block stylesheets %}{% endblock %}
 <div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 <canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="max-md:hidden fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
 <header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
-    <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="w-[38px] h-[38px] sm:w-[50px] sm:h-[50px] shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
-    <span class="text-lg sm:text-[28px] leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>
+    <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="brand-logo shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
+    <span class="brand-name leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>
     <span class="ml-auto inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1" style="background:var(--green-bg);color:var(--green);border:1px solid rgba(22,135,101,.2)"><span class="live-dot" style="margin:0"></span>Secure environment</span>
 </header>
 {% block body %}{% endblock %}

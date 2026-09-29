@@ -6,15 +6,16 @@
 <main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
     <div class="w-full max-w-2xl lg:pl-40">
         {{ include('security/_system_locked_badge.html.twig') }}
-        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Unlock migration<br>control</h1>
-        <div class="w-full max-w-sm space-y-4">
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Unlock migration control</h1>
+        <div class="w-full max-w-md space-y-4">
             <p class="text-sm leading-6" style="color:#87a4d4">Unlocking opens sign-in again for every account. Enter the super user's credentials and the reason.</p>
             {% if not configured %}
                 <p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">No super user is configured on this server. Unlock it on the server with <code>php bin/console app:system:unlock</code>.</p>
             {% else %}
                 {{ form_start(form, {attr: {class: 'space-y-4', autocomplete: 'off', novalidate: 'novalidate', 'data-turbo': 'false'}}) }}
                     {% for error in form.vars.errors %}<p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error.message }}</p>{% endfor %}
-                    {{ include('security/_super_user_fields.html.twig', {fields: ['username', 'password', 'reason']}) }}
+                    <div class="cred-grid">{{ include('security/_super_user_fields.html.twig', {fields: ['username', 'password']}) }}</div>
+                    {{ include('security/_super_user_fields.html.twig', {fields: ['reason']}) }}
                     <div class="flex flex-col sm:flex-row gap-3 pt-2">
                         <button type="submit" class="button primary h-12 flex-1" style="margin:0">Unlock</button>
                         <a href="{{ path('app_login') }}" class="button h-12 flex-1" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770">Back</a>
