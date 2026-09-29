@@ -34,6 +34,17 @@
     </div>
     <div class="progress-track"><i style="width: {{ batch.progress }}%"></i></div>
 </section>
+{% elseif just_finished %}
+{# The same section as while busy, so the page's refresh morphs the bar to 100% and the star burns out. #}
+<section class="panel pad processing">
+    <div>
+        <h2>{{ batch.status.value == 'rolled_back' ? 'Rollback finished' : 'Replacement finished' }}</h2>
+        <p>{{ batch.status.value == 'rolled_back'
+            ? (batch.rolledBackAccountCount|number_format ~ ' account(s) given their old numbers back.')
+            : (batch.appliedAccountCount|number_format ~ ' of ' ~ batch.accountCount|number_format ~ ' account(s) replaced.') }}</p>
+    </div>
+    <div class="progress-track is-done"><i style="width: 100%"></i></div>
+</section>
 {% if waiting_for_worker %}
 <p class="flash error">The background worker is off, so this batch will wait until someone turns it on. <a href="{{ path('app_worker') }}">Open Background worker</a></p>
 {% endif %}

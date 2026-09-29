@@ -40,6 +40,9 @@ final class ExportController extends AbstractController
             // Job id => whether its file can be downloaded right now.
             'available' => array_combine(array_map(static fn (ExportJob $j) => $j->getId(), $jobs), array_map($this->export->isAvailable(...), $jobs)),
             'refresh' => $this->jobs->hasUnfinished(),
+            // Exports finished after this still show their progress bar, so its end animation plays
+            // (the page's last auto-refresh lands in this window).
+            'just_finished_since' => new \DateTimeImmutable('-15 seconds'),
             'sync_max_rows' => $this->getParameter('app.export.sync_max_rows'),
             'retention' => $this->getParameter('app.export.retention'),
         ]);

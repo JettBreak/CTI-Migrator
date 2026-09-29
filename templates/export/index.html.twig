@@ -38,7 +38,8 @@
                         {% else %}
                             {{ job.rowsWritten|number_format }} rows
                         {% endif %}
-                        {% if not job.state.finished %}<div class="progress-track slim"><i style="width: {{ job.progress }}%"></i></div>{% endif %}
+                        {% if not job.state.finished %}<div class="progress-track slim"><i style="width: {{ job.progress }}%"></i></div>
+                        {% elseif job.state.value == 'completed' and job.finishedAt and job.finishedAt > just_finished_since %}<div class="progress-track slim is-done"><i style="width: 100%"></i></div>{% endif %}
                     </td>
                     <td><span class="tag {{ job.state.tone }}">{{ job.state.label }}</span>{% if job.error %}<small class="block muted">{{ job.error }}</small>{% endif %}</td>
                     <td>{% if available[job.id] %}<a class="button primary small" href="{{ path('app_export_download', {id: job.id}) }}" data-turbo="false">⇩ Download</a>{% elseif job.state.value == 'running' %}<span class="button small download-pending" aria-disabled="true">{{ include('_dino_loading.html.twig', {label: 'Preparing export…', compact: true, active: true, hide_label: true}) }}</span>{% elseif job.state.value == 'completed' %}<span class="muted">File no longer available</span>{% endif %}</td>

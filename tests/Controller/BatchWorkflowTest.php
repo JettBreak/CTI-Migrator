@@ -60,6 +60,9 @@ final class BatchWorkflowTest extends AppTestCase
         $this->post($batch, 'approve');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash.success', 'accounts replaced in core');
+        // Moments after finishing, the progress bar stays up at 100% for its end animation.
+        self::assertSelectorTextContains('.processing h2', 'Replacement finished');
+        self::assertSelectorExists('.processing .progress-track.is-done > i[style="width: 100%"]');
 
         $batch = $this->reload($batch);
         self::assertSame(BatchStatus::Completed, $batch->getStatus());
@@ -164,6 +167,8 @@ final class BatchWorkflowTest extends AppTestCase
         $this->post($batch, 'rollback/approve');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash.success', 'Rollback done');
+        self::assertSelectorTextContains('.processing h2', 'Rollback finished');
+        self::assertSelectorExists('.processing .progress-track.is-done');
 
         $batch = $this->reload($batch);
         self::assertSame(BatchStatus::RolledBack, $batch->getStatus());

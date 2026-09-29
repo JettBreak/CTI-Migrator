@@ -129,6 +129,24 @@ final class ExportControllerTest extends AppTestCase
         self::assertSame(1, $this->jobCount(), 'no second export was queued');
     }
 
+    public function testAJustFinishedExportShowsItsBarBurningOutButAFailedOneDoesNot(): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $done = new ExportJob('officer', null, 100);
+        $done->start();
+        $done->complete();
+        $failed = new ExportJob('officer', null, 100);
+        $failed->start();
+        $failed->fail('Core unreachable');
+        $em->persist($done);
+        $em->persist($failed);
+        $em->flush();
+
+        $crawler = $this->client->request('GET', '/exports');
+        self::assertCount(1, $crawler->filter('.progress-track.slim.is-done'));
+        self::assertCount(1, $crawler->filter('.progress-track'));
+    }
+
     public function testNoDownloadIsOfferedOnceTheFileIsGone(): void
     {
         $this->exportFrom('/cards');

@@ -28,6 +28,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class BatchController extends AbstractController
 {
     private const ROWS_PER_PAGE = 100;
+    /** How long after finishing the progress bar stays up for its end animation: over one 5-second refresh. */
+    private const JUST_FINISHED = '-15 seconds';
 
     public function __construct(
         private readonly BatchWorkflow $workflow,
@@ -90,6 +92,10 @@ final class BatchController extends AbstractController
             'total' => $total,
             'invalid_only' => $invalid,
             'busy' => $busy,
+            // Finished replacing or rolling back moments ago: the progress bar stays up to finish its
+            // animation (the page's last auto-refresh lands in this window).
+            'just_finished' => \in_array($batch->getStatus(), [BatchStatus::Completed, BatchStatus::RolledBack], true)
+                && $batch->getProcessedAt() > new \DateTimeImmutable(self::JUST_FINISHED),
             'waiting_for_worker' => $busy && !$this->worker->isRunning(),
             'audit' => $audit->findForBatch($batch),
         ]);

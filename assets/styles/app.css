@@ -229,12 +229,12 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
     box-shadow:0 0 10px rgba(84,161,255,.55),0 0 2px rgba(124,192,255,.9);
     transition:width .9s cubic-bezier(.2,.8,.25,1);animation:star-stream 1.2s linear infinite}
 /* The star: a white core in an amber glow, with a four-point glint */
-.progress-track>i::after{content:'';position:absolute;top:50%;right:0;width:26px;height:26px;margin:-13px -13px 0 0;border-radius:50%;
+.progress-track>i::after{content:'';position:absolute;top:50%;right:0;width:36px;height:36px;margin:-18px -18px 0 0;border-radius:50%;
     background:
-        radial-gradient(1.2px 12px at 50% 50%,rgba(255,255,255,.95),transparent),
-        radial-gradient(12px 1.2px at 50% 50%,rgba(255,255,255,.95),transparent),
-        radial-gradient(circle at 50% 50%,#fff 0 2.5px,#fff1cf 3.5px,rgba(255,196,102,.75) 5.5px,rgba(245,154,35,.28) 8.5px,transparent 13px);
-    filter:drop-shadow(0 0 4px rgba(255,200,110,.9));animation:star-twinkle 1.6s ease-in-out infinite}
+        radial-gradient(1.6px 17px at 50% 50%,rgba(255,255,255,.95),transparent),
+        radial-gradient(17px 1.6px at 50% 50%,rgba(255,255,255,.95),transparent),
+        radial-gradient(circle at 50% 50%,#fff 0 3.5px,#fff1cf 5px,rgba(255,196,102,.78) 7.5px,rgba(245,154,35,.3) 11.5px,transparent 18px);
+    filter:drop-shadow(0 0 6px rgba(255,200,110,.9));animation:star-twinkle 1.6s ease-in-out infinite}
 /* Sparks shed by the star, drifting back and fading */
 .progress-track>i::before{content:'';position:absolute;top:50%;right:0;width:46px;height:14px;margin-top:-7px;pointer-events:none;
     background:
@@ -250,5 +250,13 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 .progress-track>i[style*="width: 0%"]::after,.progress-track>i[style*="width: 0%"]::before{display:none}
 .progress-track.slim{height:6px;margin-top:8px}
 .progress-track.slim>i{animation-duration:1.6s}
-.progress-track.slim>i::after{transform:scale(.72);animation:none}
-@media (prefers-reduced-motion:reduce){.progress-track>i,.progress-track>i::after{animation:none}.progress-track>i::before{display:none}}
+.progress-track.slim>i::after{transform:scale(.7);animation:none}
+/* Just finished (batch and export pages, for a few seconds): the star flares and burns out, and the tail
+   settles into a full bar. */
+.progress-track.is-done>i{animation:none;background:linear-gradient(90deg,#3a78ee,#7cc0ff)}
+.progress-track.is-done>i::before{display:none}
+.progress-track.is-done>i::after{animation:star-burnout 1s ease-out .9s forwards}
+.progress-track.slim.is-done>i::after{animation:star-burnout-slim 1s ease-out .9s forwards}
+@keyframes star-burnout{35%{transform:scale(1.9);opacity:1}100%{transform:scale(.2);opacity:0}}
+@keyframes star-burnout-slim{35%{transform:scale(1.3);opacity:1}100%{transform:scale(.15);opacity:0}}
+@media (prefers-reduced-motion:reduce){.progress-track>i,.progress-track>i::after{animation:none}.progress-track>i::before{display:none}.progress-track.is-done>i::after{opacity:0}}
