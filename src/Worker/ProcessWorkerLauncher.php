@@ -21,6 +21,7 @@ final class ProcessWorkerLauncher implements WorkerLauncher
      * async = queued exports and large batches; scheduler_default = recurring maintenance (App\Schedule).
      * Runs in the same debug mode as the web app: a --no-debug process never recompiles its container, so it
      * would miss config changes, and it would use different cache directories (so no heartbeat or stop signal).
+     * No --keepalive: it needs the pcntl extension, which Windows does not have, and the worker refuses to start.
      */
     public const ARGUMENTS = ['bin/console', 'messenger:consume', 'async', 'scheduler_default', '--sleep=1', '-vv', '--no-ansi', '--no-interaction'];
 
