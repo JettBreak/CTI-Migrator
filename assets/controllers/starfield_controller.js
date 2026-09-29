@@ -16,7 +16,7 @@ import { Starfield } from '../starfield.js';
  *
  * <canvas id="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
  * <canvas id="page-stars" data-controller="starfield" data-starfield-dark-only-value="true"
- *         data-starfield-meteors-value='{"gap": [4, 9], "max": 1}' data-turbo-permanent aria-hidden="true"></canvas>
+ *         data-starfield-meteors-value='{"gap": [0.6, 2], "max": 3}' data-turbo-permanent aria-hidden="true"></canvas>
  */
 export default class extends Controller {
     static values = {
