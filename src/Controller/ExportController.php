@@ -29,6 +29,26 @@ final class ExportController extends AbstractController
     ) {
     }
 
+    /**
+     * @param list<ExportJob> $jobs
+     *
+     * @return array<int, int>
+     */
+    private function secondsLeftToShow(array $jobs): array
+    {
+        $left = [];
+        foreach ($jobs as $job) {
+            if (ExportState::Completed === $job->getState() && null !== $job->getFinishedAt()) {
+                $seconds = 15 - (time() - $job->getFinishedAt()->getTimestamp());
+                if ($seconds > 0) {
+                    $left[$job->getId()] = $seconds;
+                }
+            }
+        }
+
+        return $left;
+    }
+
     #[Route('', name: 'app_exports', methods: ['GET'])]
     public function index(WorkerSupervisor $worker): Response
     {
@@ -40,9 +60,9 @@ final class ExportController extends AbstractController
             // Job id => whether its file can be downloaded right now.
             'available' => array_combine(array_map(static fn (ExportJob $j) => $j->getId(), $jobs), array_map($this->export->isAvailable(...), $jobs)),
             'refresh' => $this->jobs->hasUnfinished(),
-            // Exports finished after this still show their progress bar, so its end animation plays
-            // (the page's last auto-refresh lands in this window).
-            'just_finished_since' => new \DateTimeImmutable('-15 seconds'),
+            // Job id => seconds left to show its finished progress bar: exports that completed in the
+            // last 15 seconds (the page's last auto-refresh lands in them). The bar then leaves by itself.
+            'finished_for' => $this->secondsLeftToShow($jobs),
             'sync_max_rows' => $this->getParameter('app.export.sync_max_rows'),
             'retention' => $this->getParameter('app.export.retention'),
         ]);

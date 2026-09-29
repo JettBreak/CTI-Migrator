@@ -34,9 +34,10 @@
     </div>
     <div class="progress-track"><i style="width: {{ batch.progress }}%"></i></div>
 </section>
-{% elseif just_finished %}
-{# The same section as while busy, so the page's refresh morphs the bar to 100% and the star burns out. #}
-<section class="panel pad processing">
+{% elseif just_finished_for %}
+{# The same section as while busy, so the page's refresh morphs the bar to 100% and the star burns out; it
+   leaves by itself when its seconds are up (.leaves-after in app.css). #}
+<section class="panel pad processing leaves-after" style="--leave-after: {{ just_finished_for }}s">
     <div>
         <h2>{{ batch.status.value == 'rolled_back' ? 'Rollback finished' : 'Replacement finished' }}</h2>
         <p>{{ batch.status.value == 'rolled_back'

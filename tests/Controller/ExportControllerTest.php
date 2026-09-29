@@ -144,6 +144,8 @@ final class ExportControllerTest extends AppTestCase
 
         $crawler = $this->client->request('GET', '/exports');
         self::assertCount(1, $crawler->filter('.progress-track.slim.is-done'));
+        // It leaves by itself when its 15 seconds are up (just finished: nearly all of them left).
+        self::assertMatchesRegularExpression('/--leave-after: 1[0-5]s/', $crawler->filter('.progress-track.is-done')->attr('style'));
         self::assertCount(1, $crawler->filter('.progress-track'));
     }
 

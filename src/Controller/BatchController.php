@@ -29,8 +29,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class BatchController extends AbstractController
 {
     private const ROWS_PER_PAGE = 100;
-    /** How long after finishing the progress bar stays up for its end animation: over one 5-second refresh. */
-    private const JUST_FINISHED = '-15 seconds';
+    /** Seconds a finished progress bar stays up for its end animation; the page then removes it. */
+    private const SHOW_FINISHED = 15;
 
     public function __construct(
         private readonly BatchWorkflow $workflow,
@@ -97,10 +97,9 @@ final class BatchController extends AbstractController
             // (or were) permanently deleted, and whether that has happened.
             'rows_due_on' => BatchRowPurger::dueOn($batch),
             'rows_purged' => BatchRowPurger::applies($batch) && $batch->getRowCount() > 0 && !$rows->hasRows($batch),
-            // Finished replacing or rolling back moments ago: the progress bar stays up to finish its
-            // animation (the page's last auto-refresh lands in this window).
-            'just_finished' => \in_array($batch->getStatus(), [BatchStatus::Completed, BatchStatus::RolledBack], true)
-                && $batch->getProcessedAt() > new \DateTimeImmutable(self::JUST_FINISHED),
+            // Finished replacing or rolling back moments ago: the progress bar stays up for the rest of
+            // SHOW_FINISHED seconds (the page's last auto-refresh lands in them), then leaves by itself.
+            'just_finished_for' => $this->secondsLeftToShow($batch),
             'waiting_for_worker' => $busy && !$this->worker->isRunning(),
             'audit' => $audit->findForBatch($batch),
         ]);
@@ -229,6 +228,17 @@ final class BatchController extends AbstractController
     }
 
     /** @param callable(string): void $action */
+    /** Seconds left to show $batch's finished progress bar, or null when there is none to show. */
+    private function secondsLeftToShow(MigrationBatch $batch): ?int
+    {
+        if (!\in_array($batch->getStatus(), [BatchStatus::Completed, BatchStatus::RolledBack], true) || null === $batch->getProcessedAt()) {
+            return null;
+        }
+        $left = self::SHOW_FINISHED - (time() - $batch->getProcessedAt()->getTimestamp());
+
+        return $left > 0 ? $left : null;
+    }
+
     private function act(MigrationBatch $batch, callable $action, string $success): Response
     {
         try {
