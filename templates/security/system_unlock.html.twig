@@ -12,7 +12,7 @@
             {% if not configured %}
                 {# No super user is configured (APP_SUPERUSER_*): say only that the feature is unavailable. #}
                 <p class="text-sm rounded-md px-3 py-2" role="status" style="background:#12305e;color:#cfe0ff">Unlocking isn't available right now. Contact your system administrator.</p>
-                <a href="{{ path('app_login') }}" class="button h-12 w-full" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770">Back to sign-in</a>
+                <div class="pt-2"><a href="{{ path('app_login') }}" class="button h-12 w-full" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770">Back to sign-in</a></div>
             {% else %}
                 {{ form_start(form, {attr: {class: 'space-y-4', autocomplete: 'off', novalidate: 'novalidate', 'data-turbo': 'false'}}) }}
                     {% for error in form.vars.errors %}<p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error.message }}</p>{% endfor %}
