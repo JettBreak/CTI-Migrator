@@ -97,7 +97,7 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .loading-label{font:700 12px Manrope,sans-serif;letter-spacing:.6px;color:var(--muted)}
 @keyframes rocket-flicker{0%{opacity:1}50%{opacity:0}}
 @keyframes rocket-bob{to{transform:translateY(2px)}}
-@keyframes rocket-dodge{0%,42%{transform:translateY(0)}55%,82%{transform:translateY(-19px) rotate(-6deg)}92%,100%{transform:translateY(0)}}
+@keyframes rocket-dodge{0%,42%{transform:translateY(0)}55%,82%{transform:translateY(-19px)}92%,100%{transform:translateY(0)}}
 @keyframes rocket-asteroid{from{transform:translateX(0) rotate(0)}to{transform:translateX(-270px) rotate(-180deg)}}
 @media(prefers-reduced-motion:reduce){.rocket-streaks,.rocket-craft,.rocket,.rocket-flame-a,.rocket-flame-b,.rocket-asteroid{animation:none}.rocket-flame-b{opacity:0}.rocket-asteroid{display:none}}
 /* Pixel dinosaur, the other loading animation (Administration > Settings) */
