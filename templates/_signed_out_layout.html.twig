@@ -38,6 +38,9 @@
     .login-page .brand-name{font-size:clamp(17px,3vh,28px)}
     /* Grows to fill the window, but never shrinks below its content (the page scrolls instead). */
     .login-page>main{padding-block:clamp(6px,2.4vh,40px);flex:1 0 auto;min-height:auto!important}
+    /* The content's indent from the left: 160px on wide screens, shrinking as the window narrows
+       (none below about 940px), so the form stays clear of the globe on the right. */
+    .login-page .content-column{padding-left:clamp(0px,59.7vw - 560px,160px)}
     .login-page>main h1{font-size:clamp(26px,5vh,48px);margin-bottom:clamp(6px,1.4vh,16px)}
     .login-page>main .mb-5{margin-bottom:clamp(8px,1.8vh,20px)}
     .login-page>main .space-y-4>:not([hidden])~:not([hidden]){margin-top:clamp(6px,1.4vh,16px)}
@@ -56,7 +59,7 @@
 </style>
 {% block stylesheets %}{% endblock %}
 <div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
-<canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="max-md:hidden fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
+<canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
 <header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
     <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="brand-logo shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
     <span class="brand-name leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>

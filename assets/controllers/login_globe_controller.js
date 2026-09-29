@@ -122,23 +122,63 @@ export default class extends Controller {
     }
 
     /**
-     * Sizes and places the globe in the free space on the right, between the header and the safeguards
-     * row (.login-safeguards) along the bottom: centred in it (level with the sign-in form), never
-     * running behind their text. Measured every frame
-     * (two cheap reads): the layout settles only after fonts and the Tailwind CDN styles load.
+     * Sizes and places the globe. Its usual place is on the right, between the header and the safeguards
+     * row (.login-safeguards, when shown), level with the form. Where that would run behind the heading or
+     * the form (see contentRight()), it is "docked" instead: a large globe centred on the bottom-right
+     * corner of the screen, so only its top-left quarter shows, dimmed and without the moon.
+     *
+     * The globe glides to its place rather than jumping: it zooms into the corner when the page opens
+     * docked, and moves between the two places when the window is resized (not with reduced motion).
+     * Measured every frame (a few cheap reads): the layout settles only after fonts and the Tailwind CDN
+     * styles load, and the lockout form changes height as its options change.
      */
-    placeGlobe() {
+    placeGlobe(now) {
         const top = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
-        const bottom = document.querySelector('.login-safeguards')?.getBoundingClientRect().top ?? this.height;
-        const gap = 28; // breathing room above the row and below the header
-        const radius = Math.max(60, Math.min(this.width * 0.13, (bottom - top - 2 * gap) / 2));
+        const row = document.querySelector('.login-safeguards');
+        const bottom = row && row.offsetParent ? row.getBoundingClientRect().top : this.height;
+        const gap = 28; // breathing room around the globe
+        const contentRight = this.contentRight();
+        const radius = Math.min(this.width * 0.13, (bottom - top - 2 * gap) / 2);
         const cx = this.width * 0.74;
-        this.globe = { radius, cx, cy: (top + bottom) / 2 };
+        // The glow reaches 1.1 × the radius: it must stay clear of the content.
+        const docked = radius < 60 || cx - radius * 1.1 < contentRight + gap;
+        const target = docked
+            ? { radius: Math.max(120, Math.min(this.width, this.height) * 0.5), cx: this.width, cy: this.height }
+            : { radius, cx, cy: (top + bottom) / 2 };
+
+        if (!this.view) {
+            // First frame: a docked globe starts small in the corner and zooms in.
+            this.view = docked && !this.still ? { ...target, radius: target.radius * 0.2 } : { ...target };
+        }
+        const dt = Math.min(0.1, Math.max(0, now - (this.lastNow ?? now)));
+        this.lastNow = now;
+        const follow = this.still ? 1 : 1 - Math.exp(-dt * 3.5); // eases in over about a second
+        for (const key of ['radius', 'cx', 'cy']) this.view[key] += (target[key] - this.view[key]) * follow;
+        this.globe = { ...this.view, docked };
 
         // The moon's orbit is wide enough to leave the screen on the right (the moon flies out of view
-        // and comes back), but its left end stays clear of the sign-in form.
-        const formRight = document.querySelector('main form')?.getBoundingClientRect().right ?? this.width * 0.35;
-        this.orbitWidth = Math.max(radius * 1.72, Math.min((this.width - cx) * 1.3, (cx - formRight - 60) / Math.cos(14 * Math.PI / 180)));
+        // and comes back), but its left end stays clear of the content.
+        const { radius: r, cx: x } = this.globe;
+        this.orbitWidth = Math.max(r * 1.72, Math.min((this.width - x) * 1.3, (x - contentRight - 60) / Math.cos(14 * Math.PI / 180)));
+    }
+
+    /**
+     * The right edge of what the page shows on the left: the heading's text (measured as text, not as
+     * its full-width box) and the form column.
+     */
+    contentRight() {
+        let right = 0;
+        const heading = document.querySelector('main h1');
+        if (heading) {
+            const range = document.createRange();
+            range.selectNodeContents(heading);
+            right = range.getBoundingClientRect().right;
+        }
+        document.querySelectorAll('main form, main .max-w-sm, main .max-w-md').forEach((element) => {
+            right = Math.max(right, element.getBoundingClientRect().right);
+        });
+
+        return right || this.width * 0.35;
     }
 
     /**
@@ -182,7 +222,15 @@ export default class extends Controller {
         ctx.clearRect(0, 0, w, h);
         this.starfield.drawStars(ctx, w, h, now);
         if (!this.still) this.starfield.drawMeteors(ctx, w, h, now);
-        this.placeGlobe();
+        this.placeGlobe(now);
+        if (this.globe.docked) {
+            // In the corner, behind whatever text reaches it: dimmed, and without the moon.
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            this.drawGlobe(now);
+            ctx.restore();
+            return;
+        }
         // One orbit a minute; on the far side the moon passes behind the globe.
         this.moon = this.orbitPoint(this.still ? 1.1 : 1.1 + now * (2 * Math.PI / 60));
         this.drawOrbit(true);
@@ -282,12 +330,13 @@ export default class extends Controller {
         ctx.strokeStyle = COLORS.arc;
         ctx.fillStyle = COLORS.arc;
         ctx.lineWidth = 1.6;
+        const alpha = ctx.globalAlpha; // lower when the globe is docked and dimmed
         for (const arc of this.arcs) {
-            ctx.globalAlpha = 0.75;
+            ctx.globalAlpha = alpha * 0.75;
             ctx.beginPath();
             this.path({ type: 'LineString', coordinates: Array.from({ length: 21 }, (_, i) => arc(i / 20)) });
             ctx.stroke();
-            ctx.globalAlpha = 1;
+            ctx.globalAlpha = alpha;
             const pulse = arc(t);
             if (visible(pulse)) {
                 const [x, y] = this.projection(pulse);

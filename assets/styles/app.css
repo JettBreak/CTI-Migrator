@@ -202,7 +202,15 @@ main .user-rail h1{font-size:22px;letter-spacing:-.5px;margin:14px 0 4px;line-he
 .lock-choice:hover{color:#dbe7ff;background:rgba(92,155,255,.08)}
 .lock-choice:has(input:checked){color:#fff;background:var(--blue);box-shadow:0 4px 12px #3068db40}
 .lock-choice:has(input:focus-visible){outline:2px solid #5c9bff;outline-offset:2px}
-label.lock-days{display:none}
+.login-page .lock-days{display:none}
 form:has(input[value="lock_after_days"]:checked) .lock-days{display:block}
+/* Days of use left: − / + buttons around the number (assets/controllers/number_stepper_controller.js) */
+.number-stepper{display:flex;align-items:stretch;gap:4px;margin-top:clamp(3px,.6vh,6px);padding:4px;border:1px solid #2d4770;border-radius:8px;background:#0b1a36cc;transition:border-color .15s,box-shadow .15s}
+.number-stepper:focus-within{border-color:#5c9bff;box-shadow:0 0 0 3px rgba(92,155,255,.25)}
+.number-stepper-input{flex:1;min-width:0;border:0;background:transparent;color:#fff;text-align:center;font:600 15px 'DM Sans',sans-serif;padding-block:clamp(3px,.8vh,8px);outline:none;-moz-appearance:textfield;appearance:textfield}
+.number-stepper-input::-webkit-inner-spin-button,.number-stepper-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.number-stepper-button{flex:0 0 auto;width:clamp(32px,4.4vh,40px);display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:rgba(92,155,255,.12);color:#9fc2ff;cursor:pointer;transition:background .15s,color .15s}
+.number-stepper-button:hover{background:var(--blue);color:#fff}
+.number-stepper-button:active{transform:scale(.96)}
 /* Space between the top header and the first message under it (countdown banner or flash) */
 main>header+.lock-banner,main>header+.flash{margin-top:20px}
