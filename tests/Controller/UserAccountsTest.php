@@ -167,7 +167,7 @@ final class UserAccountsTest extends AppTestCase
     public static function separationOfDuties(): iterable
     {
         yield 'administrator on migration pages' => ['admin', '/cards', 403];
-        yield 'administrator on the overview' => ['admin', '/', 403];
+        yield 'administrator on the overview is sent to user administration' => ['admin', '/', 302];
         yield 'administrator on user administration' => ['admin', '/admin/users', 200];
         yield 'officer on user administration' => ['officer', '/admin/users', 403];
         yield 'approver on user administration' => ['approver', '/admin/audit', 403];

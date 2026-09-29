@@ -2,8 +2,6 @@
 
 namespace App\Controller;
 
-use App\Enum\BatchStatus;
-use App\Repository\MigrationBatchRepository;
 use App\Service\MigrationDataService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,18 +17,6 @@ final class MigrationController extends AbstractController
     public function __construct(
         private readonly MigrationDataService $data,
     ) {
-    }
-
-    #[Route('/', name: 'app_dashboard', methods: ['GET'])]
-    public function dashboard(MigrationBatchRepository $batches): Response
-    {
-        return $this->render('migration/dashboard.html.twig', [
-            'core' => $this->data->cardStats(),
-            'renamed' => $batches->countRenamedAccounts(),
-            'awaiting' => $batches->countByStatus(BatchStatus::AwaitingApproval),
-            'needs_correction' => $batches->countByStatus(BatchStatus::Invalid) + $batches->countByStatus(BatchStatus::Failed) + $batches->countByStatus(BatchStatus::Halted),
-            'recent' => $batches->findRecent(5),
-        ]);
     }
 
     #[Route('/cards', name: 'app_cards', methods: ['GET'])]

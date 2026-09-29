@@ -2,6 +2,7 @@
 
 namespace App\Tests\Controller;
 
+use App\Enum\UserRole;
 use App\Tests\AppTestCase;
 
 final class SecurityControllerTest extends AppTestCase
@@ -39,6 +40,22 @@ final class SecurityControllerTest extends AppTestCase
         $client->clickLink('Sign out');
         self::assertResponseRedirects('/login');
         $client->request('GET', '/cards');
+        self::assertResponseRedirects('/login');
+    }
+
+    public function testAdministratorCanSignOut(): void
+    {
+        $this->createUser('admin', UserRole::Admin);
+        $this->loginAs('admin');
+        $client = $this->client;
+        $client->request('GET', '/');
+        self::assertResponseRedirects('/admin/users');
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+
+        $client->clickLink('Sign out');
+        self::assertResponseRedirects('/login');
+        $client->request('GET', '/admin/users');
         self::assertResponseRedirects('/login');
     }
 
