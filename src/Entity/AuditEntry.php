@@ -10,8 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
  * Append-only record of who did what to a batch. Core also logs each relink itself via sp_auditlog.
  */
 #[ORM\Entity(repositoryClass: AuditEntryRepository::class)]
-class AuditEntry
+class AuditEntry implements RecordsTimezone
 {
+    use TimezoneColumn;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

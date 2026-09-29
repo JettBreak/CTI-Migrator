@@ -17,8 +17,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: UserChangeRequestRepository::class)]
 #[ORM\Index(name: 'idx_user_change_status', columns: ['status', 'requested_at'])]
 #[ORM\Index(name: 'idx_user_change_target', columns: ['target_username', 'status'])]
-class UserChangeRequest
+class UserChangeRequest implements RecordsTimezone
 {
+    use TimezoneColumn;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

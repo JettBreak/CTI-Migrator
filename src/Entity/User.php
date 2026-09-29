@@ -19,8 +19,10 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'app_user')]
-class User implements UserInterface, PasswordAuthenticatedUserInterface, EquatableInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, EquatableInterface, RecordsTimezone
 {
+    use TimezoneColumn;
+
     public const USERNAME_PATTERN = '/^[a-z0-9][a-z0-9._-]{2,49}$/';
 
     #[ORM\Id]

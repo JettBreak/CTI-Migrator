@@ -44,6 +44,8 @@ final class BatchWorkflowTest extends AppTestCase
         self::assertSame(BatchStatus::Validated, $batch->getStatus());
         self::assertSame(3, $batch->accountCount());
         self::assertSame(2, $this->rows($batch)[0]->getLinkedCards());
+        // Dates are recorded in APP_TIMEZONE (Asia/Manila); the batch says so for itself and its rows.
+        self::assertSame('UTC+08:00', $batch->getTimezone());
         self::assertSelectorTextContains('tbody', '5412 86•• •••• 8821');
         self::assertSelectorTextContains('tbody', 'Ready to replace');
 

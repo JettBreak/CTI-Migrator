@@ -14,8 +14,10 @@ use Doctrine\ORM\Mapping as ORM;
  * as rows are validated and applied, and rows are read page by page through MigrationRowRepository.
  */
 #[ORM\Entity(repositoryClass: MigrationBatchRepository::class)]
-class MigrationBatch
+class MigrationBatch implements RecordsTimezone
 {
+    use TimezoneColumn;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

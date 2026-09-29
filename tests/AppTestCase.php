@@ -28,10 +28,10 @@ abstract class AppTestCase extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->clock = new MockClock();
-        Clock::set($this->clock);
-
         $this->client = static::createClient();
+        // In the app's timezone (the kernel has set it from APP_TIMEZONE), like the real clock.
+        $this->clock = new MockClock('now', date_default_timezone_get());
+        Clock::set($this->clock);
         // Keep one kernel (and so one in-memory core) across the requests of a test.
         $this->client->disableReboot();
         $this->client->setServerParameter('HTTP_ORIGIN', 'http://localhost');

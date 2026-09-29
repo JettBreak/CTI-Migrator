@@ -13,8 +13,10 @@ use Doctrine\ORM\Mapping as ORM;
  * in one request, or one of the two reports queued when a batch that skipped rows to correct completes.
  */
 #[ORM\Entity(repositoryClass: ExportJobRepository::class)]
-class ExportJob
+class ExportJob implements RecordsTimezone
 {
+    use TimezoneColumn;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

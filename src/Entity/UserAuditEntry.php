@@ -14,8 +14,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: UserAuditEntryRepository::class)]
 #[ORM\Index(name: 'idx_user_audit_target', columns: ['target', 'created_at'])]
 #[ORM\Index(name: 'idx_user_audit_created', columns: ['created_at'])]
-class UserAuditEntry
+class UserAuditEntry implements RecordsTimezone
 {
+    use TimezoneColumn;
+
     public const LOGIN = 'login';
     public const LOGIN_FAILED = 'login_failed';
     public const LOGIN_THROTTLED = 'login_throttled';

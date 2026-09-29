@@ -8,8 +8,10 @@ use Doctrine\ORM\Mapping as ORM;
 /** A password hash a user had before, kept so the last few passwords cannot be chosen again. */
 #[ORM\Entity(repositoryClass: PasswordHistoryRepository::class)]
 #[ORM\Index(name: 'idx_password_history_user', columns: ['user_id', 'created_at'])]
-class PasswordHistory
+class PasswordHistory implements RecordsTimezone
 {
+    use TimezoneColumn;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

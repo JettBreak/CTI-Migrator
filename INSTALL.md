@@ -100,6 +100,7 @@ real environment variables, or in the Symfony secrets vault for passwords.
 | Variable | Example | Notes |
 |---|---|---|
 | `APP_ENV` | `prod` | `dev` on developer machines only. |
+| `APP_TIMEZONE` | `Asia/Manila` | Timezone dates are stored and shown in. Each table records its offset (e.g. `UTC+08:00`) in a `timezone` column. Don't change it on an installation that already has data. |
 | `APP_SECRET` | 32+ random characters | Signs CSRF tokens and more. Generate with `php -r "echo bin2hex(random_bytes(32));"`. |
 | `APP_DATABASE_URL` | `mysql://migr:***@db-host:3306/data_migration?serverVersion=8.4.6&charset=utf8mb4` | The app's own database. |
 | `DATABASE_URL` | `mysql://migr:***@core-host:3306/coreapp_fusion?serverVersion=8.4.6&charset=utf8mb4` | Core banking. |
@@ -279,6 +280,9 @@ is recorded with IP and browser under *Account audit trail*.
 ---
 
 ## Upgrading
+
+Check [UPGRADE.md](UPGRADE.md) first for steps specific to the release you are moving to. The
+routine steps are:
 
 ```bash
 git pull

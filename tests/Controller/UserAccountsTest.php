@@ -23,6 +23,8 @@ final class UserAccountsTest extends AppTestCase
         self::assertNotNull($user->getLastLoginAt());
         self::assertSame('127.0.0.1', $user->getLastLoginIp());
         self::assertNotNull($user->getSessionToken());
+        self::assertSame('Asia/Manila', $user->getLastLoginAt()->getTimezone()->getName());
+        self::assertSame('UTC+08:00', $user->getTimezone());
         self::assertSame([UserAuditEntry::LOGIN], $this->auditActions('officer'));
     }
 

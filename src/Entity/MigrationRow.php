@@ -11,6 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
  * $cardRef is optional and only cross-checked; every card linked to the account follows the rename.
  *
  * Rows are written in bulk by MigrationRowRepository::insert(); keep its column list in step with this mapping.
+ * Its dates are in the timezone recorded on its batch (MigrationBatch::getTimezone()).
  */
 #[ORM\Entity(repositoryClass: MigrationRowRepository::class)]
 #[ORM\UniqueConstraint(name: 'uniq_migration_row_line', columns: ['batch_id', 'line_number'])]
