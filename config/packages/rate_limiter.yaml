@@ -1,0 +1,7 @@
+framework:
+    rate_limiter:
+        # Super user attempts to lock or unlock the app, per IP (see App\Security\SuperUser).
+        superuser:
+            policy: fixed_window
+            limit: 5
+            interval: '15 minutes'

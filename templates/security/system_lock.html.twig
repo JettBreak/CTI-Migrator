@@ -1,0 +1,51 @@
+{% extends '_signed_out_layout.html.twig' %}
+
+{% block title %}System lockout{% endblock %}
+
+{% block body %}
+<main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
+    <div class="w-full max-w-2xl lg:pl-40">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1 mb-5" style="background:rgba(245,154,35,.12);color:#f5b560;border:1px solid rgba(245,154,35,.3)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            Super user · System lockout
+        </span>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Lock migration<br>control</h1>
+        <div class="w-full max-w-sm space-y-4">
+            <p class="text-sm leading-6" style="color:#87a4d4">
+                A lock stops every sign-in and signs out everyone who is working. A batch already running
+                in the background is allowed to finish. Only the super user can lift it.
+            </p>
+            {% if status.scheduled %}
+                <p class="text-sm rounded-md px-3 py-2" role="status" style="background:rgba(245,154,35,.12);color:#f5c98a;border:1px solid rgba(245,154,35,.3)">
+                    A timed lock is set: the app locks on <b>{{ status.locksAt|date('M j, Y H:i') }}</b> ({{ status.daysLeft }} day{{ status.daysLeft == 1 ? '' : 's' }} left). Choosing another option replaces it.
+                </p>
+            {% endif %}
+
+            {% if not configured %}
+                <p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">No super user is configured on this server (APP_SUPERUSER_USERNAME and APP_SUPERUSER_PASSWORD_HASH), so the app cannot be locked from here.</p>
+            {% else %}
+                {{ form_start(form, {attr: {class: 'space-y-4', autocomplete: 'off', novalidate: 'novalidate', 'data-turbo': 'false'}}) }}
+                    {% for error in form.vars.errors %}<p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error.message }}</p>{% endfor %}
+
+                    <fieldset class="space-y-2">
+                        <legend class="text-sm font-semibold mb-2" style="color:#dbe7ff">{{ form.action.vars.label }}</legend>
+                        {% for choice in form.action %}
+                            <label class="lock-choice flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm cursor-pointer" style="border-color:#2d4770;background:#0b1a36cc;color:#dbe7ff">
+                                {{ form_widget(choice, {attr: {class: 'accent-[#5c9bff]'}}) }}
+                                <span>{{ choice.vars.label }}</span>
+                            </label>
+                        {% endfor %}
+                    </fieldset>
+                    {{ include('security/_super_user_fields.html.twig', {fields: ['days']}) }}
+                    {{ include('security/_super_user_fields.html.twig', {fields: ['username', 'password', 'reason']}) }}
+
+                    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button type="submit" class="button primary h-12 flex-1" style="margin:0">Apply</button>
+                        <a href="{{ path('app_login') }}" class="button h-12 flex-1" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770">Back to sign-in</a>
+                    </div>
+                {{ form_end(form, {render_rest: true}) }}
+            {% endif %}
+        </div>
+    </div>
+</main>
+{% endblock %}

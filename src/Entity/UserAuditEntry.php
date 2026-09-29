@@ -35,6 +35,13 @@ class UserAuditEntry implements RecordsTimezone
     public const ENABLED = 'enabled';
     public const PASSWORD_RESET = 'password_reset';
     public const UNLOCKED = 'unlocked';
+    // The whole app (target "system"), by the super user; see App\Security\SystemLock.
+    public const SYSTEM_LOCKED = 'system_locked';
+    public const SYSTEM_LOCK_SCHEDULED = 'system_lock_scheduled';
+    public const SYSTEM_LOCK_CANCELLED = 'system_lock_cancelled';
+    public const SYSTEM_UNLOCKED = 'system_unlocked';
+    public const SUPERUSER_FAILED = 'superuser_failed';
+    public const SUPERUSER_THROTTLED = 'superuser_throttled';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

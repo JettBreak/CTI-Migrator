@@ -48,6 +48,8 @@ security:
         # The access check runs before the logout listener, so without this rule the catch-all
         # below would refuse sign-out to every role but migration officers and approvers.
         - { path: ^/logout$, roles: PUBLIC_ACCESS }
+        # Locking and unlocking the whole app with the super user's credentials (never signed in).
+        - { path: ^/system-lock, roles: PUBLIC_ACCESS }
         - { path: ^/account/, roles: IS_AUTHENTICATED_FULLY }
         # The dashboard sends administrators on to user administration and checks the role itself.
         - { path: ^/$, roles: IS_AUTHENTICATED_FULLY }

@@ -37,6 +37,8 @@ abstract class AppTestCase extends WebTestCase
         $this->client->setServerParameter('HTTP_ORIGIN', 'http://localhost');
         // Sign-in throttling counts attempts in a cache that outlives a test.
         static::getContainer()->get('cache.rate_limiter')->clear();
+        // The system lock is a file, not a database row.
+        @unlink(static::getContainer()->getParameter('app.system_lock.file'));
 
         $em = $this->em();
         $tool = new SchemaTool($em);

@@ -67,6 +67,14 @@
             <div class="profile" title="{{ previous }}"><div class="avatar">{{ me.displayName|split(' ')|map(p => p|first)|join|slice(0, 2)|upper }}</div><div><b>{{ me.displayName }}</b><small>{{ me.username }} · {{ me.role.label }} · <a href="{{ logout_path() }}" data-turbo="false">Sign out</a></small><small class="profile-last">{{ previous }}</small></div></div>
         {% endif %}
     </header>
+    {% set system_lock_status = system_lock() %}
+    {% if system_lock_status.scheduled %}
+        {# Timed system lock set by the super user (see App\Security\SystemLock) #}
+        <div class="lock-banner{{ system_lock_status.daysLeft <= 3 ? ' urgent' }}" role="status">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span>Access to migration control ends on <b>{{ system_lock_status.locksAt|date('M j, Y H:i') }}</b> · {{ system_lock_status.daysLeft }} day{{ system_lock_status.daysLeft == 1 ? '' : 's' }} left</span>
+        </div>
+    {% endif %}
     {% for type, messages in app.flashes(['success', 'error']) %}{% for message in messages %}<div class="flash {{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
     {% block body %}{% endblock %}
 </main>

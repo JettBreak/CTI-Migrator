@@ -108,6 +108,8 @@ real environment variables, or in the Symfony secrets vault for passwords.
 | `DEFAULT_URI` | `https://migration.bank.local` | Used to build links outside web requests. |
 | `MESSENGER_TRANSPORT_DSN` | `doctrine://app?auto_setup=0` | Keep the default: the queue lives in the app database. |
 | `LOCK_DSN` | `flock` | Keep the default for a single server. For several web servers, use a shared store (e.g. a `mysql://` DSN). |
+| `APP_SUPERUSER_USERNAME` | `coreware.super` | The super user who locks and unlocks the whole app (see *System lockout*). Not an app account. Empty: the lock can't be set or lifted from the web. |
+| `APP_SUPERUSER_PASSWORD_HASH` | `$2y$13$…` | Its password hash, from `php bin/console security:hash-password`. Keep it in the secrets vault. |
 
 Set `serverVersion` in every URL to the exact MySQL version of that server. `app:database:init`
 warns when the core server's version doesn't match.
@@ -120,6 +122,7 @@ php bin/console secrets:set APP_SECRET --env=prod
 php bin/console secrets:set DATABASE_URL --env=prod
 php bin/console secrets:set CORE_SECURITY_DATABASE_URL --env=prod
 php bin/console secrets:set APP_DATABASE_URL --env=prod
+php bin/console secrets:set APP_SUPERUSER_PASSWORD_HASH --env=prod
 ```
 
 Commit `config/secrets/prod/*` **except** `prod.decrypt.private.php`. Copy that decryption key to
@@ -279,6 +282,31 @@ is recorded with IP and browser under *Account audit trail*.
 
 ---
 
+## System lockout
+
+The super user (`APP_SUPERUSER_USERNAME` / `APP_SUPERUSER_PASSWORD_HASH`) can lock the whole app from
+the **Lockout** button under the sign-in form, with a reason:
+
+- **Lock now** – sign-in closes at once and everyone signed in is signed out on their next click.
+- **Allow use for a number of days, then lock** – every page shows a countdown banner (red on the
+  last three days); at the end the app locks by itself.
+
+While locked, the sign-in form is replaced by the lock notice and an **Unlock** button, which asks
+for the super user's credentials again. A batch already running in the background worker is allowed
+to finish. Super user attempts are limited to 5 per 15 minutes per IP, and every lock, unlock and
+failed attempt is recorded under *Account audit trail* (target `system`).
+
+The lock is kept in `var/system-lock.prod.json`, not in the database, signed with a key derived from
+`APP_SECRET`. **Keep `var/` across deployments.** A lock file that has been edited, or that was
+signed with a previous `APP_SECRET`, keeps the app locked. To lift the lock on the server without
+the super user (e.g. a lost password or a changed `APP_SECRET`):
+
+```bash
+php bin/console app:system:unlock "Reason for the audit trail"
+```
+
+---
+
 ## Upgrading
 
 Check [UPGRADE.md](UPGRADE.md) first for steps specific to the release you are moving to. The
@@ -325,5 +353,6 @@ database.
 | Worker won't start or stops | `var/log/worker-error.log`, `var/log/worker.log`, and the log tail on the *Background worker* page. |
 | "Invalid username or password" for a known user | The reason (wrong password, locked, disabled, dormant) is recorded under *Account audit trail*. Unlock with an administrator or `app:user:account unlock`. |
 | All administrators locked out | `php bin/console app:user:account unlock <admin>` or `reset-password <admin>` on the server. |
+| Sign-in page says *Migration control is locked* | The super user locked the app (reason under *Account audit trail*). Unlock with the super user, or `app:system:unlock` on the server. *Failed its integrity check* means the lock file was edited or `APP_SECRET` changed. |
 | Uploads rejected as too large | PHP's `upload_max_filesize` / `post_max_size` (section 1) and `app.batch.upload_max_size`. |
 | Page shows the loading dinosaur forever or looks unstyled | Browser console. The pages need `cdn.tailwindcss.com` and Google Fonts to be reachable. |

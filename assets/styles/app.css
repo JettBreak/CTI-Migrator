@@ -191,3 +191,9 @@ main .user-rail h1{font-size:22px;letter-spacing:-.5px;margin:14px 0 4px;line-he
 .history-tabs button span{font-size:11px;background:#eef1f6;color:#65728a;border-radius:99px;padding:2px 7px;margin-left:4px}
 .history [role=tabpanel][hidden]{display:none}
 @media(max-width:1000px){.user-layout{grid-template-columns:minmax(0,1fr);margin-left:16px;margin-right:16px}.user-rail{position:static}}
+/* Countdown to a timed system lock (templates/base.html.twig); red on the last three days */
+.lock-banner{display:flex;align-items:center;gap:10px;margin:0 46px 18px;padding:11px 16px;border-radius:8px;background:var(--amber-bg);color:var(--amber);border:1px solid #f6e2bb;font-size:13px}
+.lock-banner svg{flex-shrink:0}
+.lock-banner.urgent{background:var(--red-bg);color:var(--red);border-color:#f3c3c9}
+@media(max-width:1000px){.lock-banner{margin-left:16px;margin-right:16px}}
+.lock-choice:has(input:checked){border-color:#5c9bff!important;box-shadow:0 0 0 3px rgba(92,155,255,.2)}

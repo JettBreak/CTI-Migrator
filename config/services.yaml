@@ -30,6 +30,9 @@ parameters:
     app.security.idle_timeout: 900       # seconds without activity before the session ends
     app.security.session_lifetime: 28800 # seconds after signing in before the session ends
     app.security.dormant_after: '90 days'
+    # The system lock set by the super user (see App\Security\SystemLock). Keep var/ across deploys:
+    # the lock lives in this file, not in the database.
+    app.system_lock.file: '%kernel.project_dir%/var/system-lock.%kernel.environment%.json'
 
 services:
     # default configuration for services in *this* file

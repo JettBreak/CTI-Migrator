@@ -1,0 +1,9 @@
+{# Super user name, password and reason fields of SystemLockType, in the sign-in page's style. #}
+{% set input = 'mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30' %}
+{% for name in fields %}
+    {% set field = form[name] %}
+    <label class="block text-sm font-semibold" style="color:#dbe7ff">{{ field.vars.label }}
+        {{ form_widget(field, {attr: {class: input}}) }}
+        {% for error in field.vars.errors %}<span class="block mt-1.5 text-xs font-medium" style="color:#ff9aa8">{{ error.message }}</span>{% endfor %}
+    </label>
+{% endfor %}

@@ -16,6 +16,22 @@
 {% block body %}
 <main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
     <div class="w-full max-w-xl pl-40">
+        {% set status = system_lock() %}
+        {% for message in app.flashes('system_lock') %}
+            <p class="max-w-sm text-sm rounded-md px-3 py-2 mb-4" role="status" style="background:#12305e;color:#cfe0ff">{{ message }}</p>
+        {% endfor %}
+        {% if status.locked %}
+        {# The lock replaces the sign-in form; only the super user can lift it. #}
+        {{ include('security/_system_locked_badge.html.twig') }}
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Migration control<br>is locked</h1>
+        <div class="w-full max-w-sm space-y-4">
+            <p class="text-sm leading-6" style="color:#87a4d4">Sign-in is closed for every account until the super user unlocks the system.</p>
+            {% if status.reason and not status.tampered %}
+                <p class="text-xs rounded-md px-3 py-2" style="background:#0b1a36cc;color:#8ea7cf;border:1px solid #24436f">Reason: {{ status.reason }}</p>
+            {% endif %}
+            <a href="{{ path('app_system_unlock') }}" class="button primary w-full h-12" style="margin:8px 0 0">Unlock</a>
+        </div>
+        {% else %}
         <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>migration control</h1>
         <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation" data-action="field-validation#validate page-loader#show">
             <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
@@ -34,6 +50,16 @@
             <button type="submit" class="button primary w-full h-12" style="margin:8px 0 0">Sign in</button>
             <span class="block text-xs mt-2" style="color:#8ea7cf">Forgot your password or locked out? Contact your user administrator.</span>
         </form>
+        <div class="w-full max-w-sm mt-5 pt-4 flex items-center gap-3 border-t text-xs" style="border-color:#24436f;color:#8ea7cf">
+            {% if status.scheduled %}
+                <span class="lock-countdown" style="color:#f5c98a">Access ends on {{ status.locksAt|date('M j, Y') }} · {{ status.daysLeft }} day{{ status.daysLeft == 1 ? '' : 's' }} left</span>
+            {% endif %}
+            <a href="{{ path('app_system_lock') }}" class="ml-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-semibold" style="color:#dbe7ff;border:1px solid #2d4770" data-turbo="false">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                Lockout
+            </a>
+        </div>
+        {% endif %}
     </div>
 </main>
 <section class="login-safeguards relative z-[1] px-6 sm:px-10 lg:px-20 pb-8" aria-label="Safeguards">
