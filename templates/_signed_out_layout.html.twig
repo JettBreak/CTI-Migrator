@@ -54,12 +54,17 @@
     @media (max-height:820px){.login-page .login-safeguards li span.block{display:none}}
     @media (max-height:680px){.login-page .login-safeguards{display:none}}
     /* Super user name and password side by side where there is room. */
+    /* "Scroll to explore" (sign-in page): fades out once the wheel has been used (login-globe controller) */
+    .zoom-hint{position:fixed;right:clamp(16px,3vw,40px);bottom:clamp(58px,9vh,84px);z-index:1;display:flex;align-items:center;gap:8px;
+        font-size:12px;font-weight:600;color:#8ea7cf;pointer-events:none;transition:opacity .8s ease}
+    .zoom-hint.is-used{opacity:0}
+    @media (max-width:900px),(max-height:560px){.zoom-hint{display:none}}
     .cred-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     @media (max-width:480px){.cred-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 {% block stylesheets %}{% endblock %}
 <div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
-<canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
+<canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" {% block globe_attributes %}{% endblock %} aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
 <header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
     <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="brand-logo shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
     <span class="brand-name leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>

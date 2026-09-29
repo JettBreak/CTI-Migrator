@@ -17,7 +17,12 @@ import { Starfield } from '../starfield.js';
  * Dispatches "login-globe:ready" once the continents are drawn (or failed to load), so the page
  * loader can keep the page covered until then.
  *
- * <canvas data-controller="login-globe" data-login-globe-land-value="/assets/data/land-110m.json"></canvas>
+ * On the sign-in page (zoomable value) the mouse wheel zooms out, slowly, from the Earth to the whole
+ * solar system in the free space beside the form, and back in. The wheel keeps scrolling the page instead
+ * where the page is taller than the window, and does nothing while the globe is docked in the corner.
+ *
+ * <canvas data-controller="login-globe" data-login-globe-land-value="/assets/data/land-110m.json"
+ *         data-login-globe-zoomable-value="true"></canvas>
  */
 const HUBS = [[121, 14.6], [103.8, 1.35], [139.7, 35.7], [-122.4, 37.8], [-0.1, 51.5], [55.3, 25.2], [151.2, -33.9], [114.2, 22.3]];
 const LINKS = [[0, 1], [0, 2], [0, 3], [0, 7], [1, 5], [5, 4], [2, 3], [0, 6]];
@@ -27,6 +32,27 @@ const HORIZON = Math.PI / 2 - 0.02;
 const MARIA = [[-30, 25, 26], [10, 18, 16], [30, 5, 14], [-45, -8, 18], [55, 12, 12], [-10, -25, 13], [160, 20, 20], [-140, -10, 22]];
 /** The larger craters (lon, lat, radius in degrees); many small ones are added at random (seeded, so always the same). */
 const CRATERS = [[-11, -43, 6], [-20, 10, 5], [-38, 8, 4], [25, -30, 7], [70, -20, 5], [-80, 30, 6], [120, -40, 8], [-170, 35, 5], [95, 45, 4]];
+/**
+ * The solar system for the zoomed-out view, in "world" units where the Earth's radius is 1 (so with no
+ * zoom one unit is the globe's radius in pixels). Distances and sizes are stylised, not to scale, so it
+ * all fits beside the form: orbit radius, planet radius, colour, and where on its orbit each one starts.
+ */
+const SUN_RADIUS = 7;
+const PLANETS = [
+    { orbit: 24, size: 0.45, color: '#b9b1a6', phase: 2.1 },
+    { orbit: 38, size: 0.9, color: '#e8c98f', phase: 4.0 },
+    { orbit: 58, size: 1, color: '#4f8ef7', phase: 0.6, earth: true },
+    { orbit: 82, size: 0.6, color: '#d2694a', phase: 5.2 },
+    { orbit: 132, size: 4.2, color: '#d9b48c', phase: 3.1 },
+    { orbit: 180, size: 3.6, color: '#e4cd95', phase: 1.3, ring: true },
+    { orbit: 232, size: 2.2, color: '#9fd9e3', phase: 4.6 },
+    { orbit: 280, size: 2.1, color: '#5b82e8', phase: 2.7 },
+];
+const EARTH = PLANETS.find((p) => p.earth);
+/** Orbits are seen from slightly above: squashed vertically and tilted a little, like the moon's. */
+const ORBIT_SQUASH = 0.3;
+const ORBIT_TILT = -8 * Math.PI / 180;
+const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
 
 /** $count small craters spread over the sphere, from a fixed seed so the moon always looks the same. */
 function smallCraters(count) {
@@ -37,7 +63,7 @@ function smallCraters(count) {
 }
 
 export default class extends Controller {
-    static values = { land: String };
+    static values = { land: String, zoomable: Boolean };
 
     connect() {
         this.ctx = this.element.getContext('2d');
@@ -47,17 +73,23 @@ export default class extends Controller {
         this.arcs = LINKS.map(([a, b]) => geoInterpolate(HUBS[a], HUBS[b]));
         this.dots = [];
         this.moonProjection = geoOrthographic().clipAngle(90);
-        this.moonPath = geoPath(this.moonProjection, this.ctx);
         this.maria = MARIA.map(([lon, lat, r]) => geoCircle().center([lon, lat]).radius(r)());
         this.craters = [...CRATERS, ...smallCraters(60)].map(([lon, lat, r]) => geoCircle().center([lon, lat]).radius(r)());
         this.starfield = new Starfield({ count: 420 });
         this.rotation = -100;
         this.still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this.zoom = 0; // 0: the Earth; 1: the whole solar system
+        this.zoomTarget = 0;
+        this.hint = document.querySelector('.zoom-hint');
 
         this.onResize = () => { this.resize(); this.draw(); };
         this.onVisibilityChange = () => (document.hidden ? this.stop() : this.start());
         window.addEventListener('resize', this.onResize);
         document.addEventListener('visibilitychange', this.onVisibilityChange);
+        if (this.zoomableValue) {
+            this.onWheel = this.wheel.bind(this);
+            window.addEventListener('wheel', this.onWheel, { passive: false });
+        }
 
         this.resize();
         this.loadLand();
@@ -68,6 +100,19 @@ export default class extends Controller {
         this.stop();
         window.removeEventListener('resize', this.onResize);
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
+        if (this.onWheel) window.removeEventListener('wheel', this.onWheel);
+    }
+
+    /** Scrolling down zooms out towards the solar system, scrolling up zooms back in to the Earth. */
+    wheel(event) {
+        const body = document.body;
+        // A page taller than the window keeps its normal scrolling; a docked globe does not zoom.
+        if (this.globe?.docked || body.scrollHeight > body.clientHeight + 1) return;
+        event.preventDefault();
+        const pixels = event.deltaY * (event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? 800 : 1);
+        this.zoomTarget = clamp(this.zoomTarget + pixels / 2400);
+        this.hint?.classList.add('is-used');
+        if (this.still) { this.zoom = this.zoomTarget; this.draw(); }
     }
 
     async loadLand() {
@@ -100,10 +145,17 @@ export default class extends Controller {
         requestAnimationFrame(() => requestAnimationFrame(() => this.dispatch('ready')));
     }
 
+    /** Animates at the display's frame rate; the globe turns 4.8 degrees a second, whatever that rate is. */
     start() {
         if (this.still) { this.draw(); return; }
         if (this.frame) return;
-        const tick = () => { this.rotation += 0.08; this.draw(); this.frame = requestAnimationFrame(tick); };
+        let last = null;
+        const tick = (time) => {
+            this.frame = requestAnimationFrame(tick);
+            this.rotation += 4.8 * Math.min(0.1, last === null ? 0 : (time - last) / 1000);
+            last = time;
+            this.draw();
+        };
         this.frame = requestAnimationFrame(tick);
     }
 
@@ -138,6 +190,7 @@ export default class extends Controller {
         const bottom = row && row.offsetParent ? row.getBoundingClientRect().top : this.height;
         const gap = 28; // breathing room around the globe
         const contentRight = this.contentRight();
+        this.lastContentRight = contentRight;
         const radius = Math.min(this.width * 0.13, (bottom - top - 2 * gap) / 2);
         const cx = this.width * 0.74;
         // The glow reaches 1.1 × the radius: it must stay clear of the content.
@@ -225,36 +278,229 @@ export default class extends Controller {
         this.placeGlobe(now);
         if (this.globe.docked) {
             // In the corner, behind whatever text reaches it: dimmed, and without the moon.
+            this.zoom = this.zoomTarget = 0;
             ctx.save();
             ctx.globalAlpha = 0.6;
             this.drawGlobe(now);
             ctx.restore();
             return;
         }
-        // One orbit a minute; on the far side the moon passes behind the globe.
+        this.stepZoom(now);
+        if (this.zoom > 0.001) {
+            this.drawSolarSystem(now);
+            return;
+        }
+        this.drawEarthAndMoon(now);
+    }
+
+    /** The globe with the moon going round it; on the far side the moon passes behind the globe. */
+    drawEarthAndMoon(now, moonAlpha = 1) {
+        const { ctx } = this;
+        // One orbit a minute.
         this.moon = this.orbitPoint(this.still ? 1.1 : 1.1 + now * (2 * Math.PI / 60));
+        ctx.save();
+        ctx.globalAlpha = moonAlpha;
         this.drawOrbit(true);
         if (this.moon.behind) this.drawMoon(now);
+        ctx.restore();
         this.drawGlobe(now);
+        ctx.save();
+        ctx.globalAlpha = moonAlpha;
         this.drawOrbit(false);
         if (!this.moon.behind) this.drawMoon(now);
+        ctx.restore();
+    }
+
+    /** Eases the zoom towards where the wheel left it: slowly, over a couple of seconds. */
+    stepZoom(now) {
+        const dt = Math.min(0.1, Math.max(0, now - (this.lastZoomAt ?? now)));
+        this.lastZoomAt = now;
+        this.zoom += (this.zoomTarget - this.zoom) * (this.still ? 1 : 1 - Math.exp(-dt * 1.6));
+        if (Math.abs(this.zoomTarget - this.zoom) < 0.0005) this.zoom = this.zoomTarget;
+    }
+
+    /** Where on its orbit a planet is (radians): one Earth year every two minutes, the others slower further out. */
+    planetAngle(planet, now) {
+        return planet.phase + (this.still ? 0 : now * (2 * Math.PI / 120) * Math.pow(EARTH.orbit / planet.orbit, 1.5));
+    }
+
+    /**
+     * Where a planet is, in world units around the Sun, and whether it is on the far side of its orbit.
+     * $turn rotates the whole system (see drawSolarSystem()).
+     */
+    planetAt(planet, now, turn = 0) {
+        const angle = this.planetAngle(planet, now) + turn;
+
+        return { ...this.orbitAt(planet.orbit, angle), far: Math.sin(angle) < 0 };
+    }
+
+    orbitAt(radius, angle) {
+        const x = radius * Math.cos(angle), y = radius * Math.sin(angle) * ORBIT_SQUASH;
+
+        return { x: x * Math.cos(ORBIT_TILT) - y * Math.sin(ORBIT_TILT), y: x * Math.sin(ORBIT_TILT) + y * Math.cos(ORBIT_TILT) };
+    }
+
+    /**
+     * The zoomed-out view. The camera's scale falls exponentially from "one world unit = the globe's radius"
+     * to "the outermost orbit fills the free space beside the form", while it slides from the Earth to the
+     * Sun and from the globe's place to the middle of the free space. The Earth drifts out to its true place
+     * on its orbit only as the zoom ends, so it stays in view the whole way.
+     */
+    drawSolarSystem(now) {
+        const { ctx } = this;
+        const z = this.zoom;
+        const ease = z * z * (3 - 2 * z);
+        const base = this.globe;
+        const baseOrbit = this.orbitWidth; // the moon's orbit with no zoom, as placeGlobe() set it this frame
+        const contentRight = this.lastContentRight ?? this.width * 0.35;
+        const fit = Math.max(120, Math.min((this.width - contentRight) / 2 - 40, this.height * 1.1));
+        const s0 = base.radius, s1 = fit / PLANETS.at(-1).orbit;
+        const scale = Math.exp(Math.log(s0) + (Math.log(s1) - Math.log(s0)) * z);
+        const anchor = { x: base.cx + ((contentRight + this.width) / 2 - base.cx) * ease, y: base.cy };
+        // Start with the Earth on the left of the Sun, so the Sun comes into view on the right, away from the
+        // form; the system turns back to the planets' real places as the zoom completes.
+        const toLeft = Math.PI - this.planetAngle(EARTH, now);
+        const turn = Math.atan2(Math.sin(toLeft), Math.cos(toLeft)) * (1 - ease);
+        const earth = this.planetAt(EARTH, now, turn);
+        const follow = Math.min(1, s1 * Math.pow(z, 1.5) / scale); // 0: centred on the Earth; 1: on the Sun
+        const camera = { x: earth.x * (1 - follow), y: earth.y * (1 - follow) };
+        const toScreen = (p) => ({ x: anchor.x + (p.x - camera.x) * scale, y: anchor.y + (p.y - camera.y) * scale });
+        const reveal = clamp((z - 0.12) / 0.4); // the rest of the solar system fades in
+        // While zooming, the outer orbits are wider than the free space: keep them (and the planets on
+        // them) out from behind the form.
+        const clipToFreeSpace = () => { ctx.beginPath(); ctx.rect(contentRight + 32, 0, this.width, this.height); ctx.clip(); };
+
+        if (reveal > 0) {
+            ctx.save();
+            clipToFreeSpace();
+            ctx.setLineDash([3, 6]);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = `rgba(156,198,255,${0.22 * reveal})`;
+            for (const planet of PLANETS) {
+                ctx.beginPath();
+                for (let i = 0; i <= 120; ++i) {
+                    const { x, y } = toScreen(this.orbitAt(planet.orbit, (i / 120) * 2 * Math.PI));
+                    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        const others = PLANETS.filter((p) => !p.earth).map((p) => ({ planet: p, ...this.planetAt(p, now, turn) }));
+        const drawPlanets = (far) => {
+            if (reveal <= 0) return;
+            ctx.save();
+            clipToFreeSpace();
+            ctx.globalAlpha = reveal;
+            for (const p of others.filter((o) => o.far === far)) {
+                this.drawPlanet(p.planet, toScreen(p), Math.min(80, Math.max(1.8, p.planet.size * scale)));
+            }
+            ctx.restore();
+        };
+        drawPlanets(true);
+        this.drawSun(toScreen({ x: 0, y: 0 }), Math.min(500, Math.max(9, SUN_RADIUS * scale)));
+        drawPlanets(false);
+
+        // The Earth: the full globe (its moon fading out) while it is big enough, then a blue dot.
+        const at = toScreen(earth);
+        const radius = scale * EARTH.size;
+        if (radius >= 14) {
+            this.globe = { ...base, radius, cx: at.x, cy: at.y };
+            this.orbitWidth = baseOrbit * (scale / s0);
+            this.drawEarthAndMoon(now, clamp((radius - 14) / 50));
+            this.globe = base;
+            this.orbitWidth = baseOrbit;
+        } else {
+            this.drawPlanet(EARTH, at, Math.max(2.4, radius));
+        }
+    }
+
+    drawSun({ x, y }, r) {
+        const { ctx } = this;
+        if (x + r * 4 < 0 || x - r * 4 > this.width || y + r * 4 < 0 || y - r * 4 > this.height) return;
+        const corona = ctx.createRadialGradient(x, y, r * 0.8, x, y, r * 4);
+        corona.addColorStop(0, 'rgba(255,190,90,.42)');
+        corona.addColorStop(0.4, 'rgba(245,154,35,.14)');
+        corona.addColorStop(1, 'rgba(245,154,35,0)');
+        ctx.fillStyle = corona;
+        ctx.beginPath(); ctx.arc(x, y, r * 4, 0, 2 * Math.PI); ctx.fill();
+        const body = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+        body.addColorStop(0, '#fffbe8');
+        body.addColorStop(0.5, '#ffd36b');
+        body.addColorStop(1, '#f59a23');
+        ctx.fillStyle = body;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
+    }
+
+    /** A planet as a small sphere lit from the upper left, with Saturn's ring and the Earth's blue glow. */
+    drawPlanet(planet, { x, y }, r) {
+        const { ctx } = this;
+        if (planet.ring) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(228,205,149,.55)';
+            ctx.lineWidth = Math.max(1, r * 0.28);
+            ctx.beginPath(); ctx.ellipse(x, y, r * 2.1, r * 0.62, ORBIT_TILT, 0, 2 * Math.PI); ctx.stroke();
+            ctx.restore();
+        }
+        if (r < 3) {
+            ctx.fillStyle = planet.color;
+        } else {
+            const body = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.1, x, y, r);
+            body.addColorStop(0, '#ffffff');
+            body.addColorStop(0.25, planet.color);
+            body.addColorStop(1, 'rgba(8,12,26,.9)');
+            ctx.fillStyle = body;
+        }
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
+        if (planet.earth) {
+            const glow = ctx.createRadialGradient(x, y, r, x, y, r * 3);
+            glow.addColorStop(0, 'rgba(92,155,255,.45)');
+            glow.addColorStop(1, 'rgba(92,155,255,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(x, y, r * 3, 0, 2 * Math.PI); ctx.fill();
+        }
     }
 
     /**
      * The moon, drawn to look like the real thing: an opaque grey sphere lit from the upper left (like
      * the globe), darker at its edge, with soft grey seas and craters that turn very slowly with it.
+     *
+     * Its surface (blurred seas, some seventy craters) is the most expensive thing in the scene, and it
+     * turns only 1.5 degrees a second, so it is drawn into an offscreen canvas and reused: redrawn when
+     * it has turned another degree, or when its size has changed by more than a few pixels (its size
+     * changes along its orbit and while zooming; the cached image is scaled for the rest).
      */
     drawMoon(now) {
         const { ctx } = this;
         const { radius: r, x: cx, y: cy } = this.moon;
-        const rotation = 40 - now * 1.5; // degrees; a slow turn, so the craters move like on a sphere
-        this.moonProjection.scale(r).translate([cx, cy]).rotate([rotation, -18]);
+        if (r < 0.5) return;
 
         const halo = ctx.createRadialGradient(cx, cy, r * 0.9, cx, cy, r * 2.2);
         halo.addColorStop(0, 'rgba(235,238,245,.22)');
         halo.addColorStop(1, 'rgba(235,238,245,0)');
         ctx.fillStyle = halo;
         ctx.beginPath(); ctx.arc(cx, cy, r * 2.2, 0, 2 * Math.PI); ctx.fill();
+
+        const rotation = Math.round(40 - now * 1.5); // degrees; a slow turn, so the craters move like on a sphere
+        const size = Math.max(8, Math.ceil(r / 6) * 6); // drawn a little larger, then scaled down
+        const ratio = window.devicePixelRatio || 1;
+        if (!this.moonCache || this.moonCache.rotation !== rotation || this.moonCache.size !== size || this.moonCache.ratio !== ratio) {
+            this.moonCache = { rotation, size, ratio, canvas: this.renderMoon(size, rotation, ratio) };
+        }
+        ctx.drawImage(this.moonCache.canvas, cx - r, cy - r, 2 * r, 2 * r);
+    }
+
+    /** The moon's surface, $r pixels in radius (times the pixel ratio), on one reused offscreen canvas. */
+    renderMoon(r, rotation, ratio) {
+        const canvas = this.moonCanvas ??= document.createElement('canvas');
+        canvas.width = canvas.height = Math.ceil(2 * r * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.clearRect(0, 0, 2 * r, 2 * r);
+        const cx = r, cy = r;
+        const projection = this.moonProjection.scale(r).translate([cx, cy]).rotate([rotation, -18]);
+        const path = geoPath(projection, ctx);
 
         ctx.save();
         ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.clip();
@@ -270,14 +516,14 @@ export default class extends Controller {
         ctx.filter = `blur(${Math.max(1, r / 16)}px)`;
         ctx.fillStyle = 'rgba(96,94,90,.42)';
         for (const mare of this.maria) {
-            ctx.beginPath(); this.moonPath(mare); ctx.fill();
+            ctx.beginPath(); path(mare); ctx.fill();
         }
         ctx.filter = 'none';
 
         // Craters: a shallow darker hollow with a lighter rim.
         ctx.lineWidth = Math.max(0.5, r / 60);
         for (const crater of this.craters) {
-            ctx.beginPath(); this.moonPath(crater);
+            ctx.beginPath(); path(crater);
             ctx.fillStyle = 'rgba(88,86,82,.22)';
             ctx.fill();
             ctx.strokeStyle = 'rgba(255,255,250,.28)';
@@ -292,6 +538,8 @@ export default class extends Controller {
         ctx.fillStyle = shadow;
         ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r);
         ctx.restore();
+
+        return canvas;
     }
 
     drawGlobe(now) {
