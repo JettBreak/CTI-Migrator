@@ -69,6 +69,9 @@
     </nav>
     <div class="sidebar-footer"><span class="live-dot"></span> Secure environment<br><small>v1.0</small></div>
 </aside>
+{# Faint stars and shooting stars behind the page in the dark theme; idle in light (starfield controller, dark-only). #}
+<canvas id="page-stars" class="page-stars" data-controller="starfield" data-starfield-dark-only-value="true" data-starfield-count-value="160" data-starfield-seed-value="20260929"
+        data-starfield-meteors-value='{"gap": [4, 10], "max": 1, "distance": [220, 420], "tail": [60, 130]}' data-turbo-permanent aria-hidden="true"></canvas>
 <main>
     <header>
         <div class="crumb">Operations <b>/</b> {% block crumb %}Overview{% endblock %}</div>

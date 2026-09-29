@@ -322,3 +322,9 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 .theme-switch button:hover{color:var(--ink)}
 .theme-switch button[aria-pressed=true]{background:var(--accent-bg);color:var(--accent-ink)}
 .theme-switch button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+/* Faint sky behind the page content in the dark theme (templates/base.html.twig, starfield controller):
+   stars show between the panels and softly through their glass. */
+.page-stars{display:none;position:fixed;top:0;right:0;bottom:0;left:245px;width:calc(100% - 245px);height:100%;pointer-events:none;opacity:.5}
+[data-theme=dark] body:not(.login-page) .page-stars{display:block}
+[data-theme=dark] body:not(.login-page) main{position:relative;z-index:1}
+@media(max-width:1000px){.page-stars{left:210px;width:calc(100% - 210px)}}

@@ -11,33 +11,55 @@ import { Starfield } from '../starfield.js';
  * load shows the same sky. The animation pauses while the tab is hidden and is a still frame for
  * users who prefer reduced motion.
  *
+ * The same controller draws the faint sky behind the page content in the dark theme (base.html.twig):
+ * dark-only runs it only while <html data-theme="dark"> (the theme switch), so it costs nothing in light.
+ *
  * <canvas id="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
+ * <canvas id="page-stars" data-controller="starfield" data-starfield-dark-only-value="true"
+ *         data-starfield-meteors-value='{"gap": [4, 9], "max": 1}' data-turbo-permanent aria-hidden="true"></canvas>
  */
 export default class extends Controller {
-    static values = { count: { type: Number, default: 90 } };
+    static values = {
+        count: { type: Number, default: 90 },
+        seed: { type: Number, default: 20260928 },
+        // Shooting stars: overrides of Starfield's defaults (see ../starfield.js); these suit the narrow sidebar.
+        meteors: { type: Object, default: { gap: [2.5, 6], max: 2, area: [0.4, 1.1, 0, 0.8], distance: [120, 220], tail: [40, 90], life: [0.7, 1.2] } },
+        darkOnly: Boolean,
+    };
 
     connect() {
         this.ctx = this.element.getContext('2d');
-        this.starfield = new Starfield({
-            count: this.countValue,
-            seed: 20260928,
-            meteors: { gap: [2.5, 6], max: 2, area: [0.4, 1.1, 0, 0.8], distance: [120, 220], tail: [40, 90], life: [0.7, 1.2] },
-        });
+        this.starfield = new Starfield({ count: this.countValue, seed: this.seedValue, meteors: this.meteorsValue });
         this.still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        this.onResize = () => { this.resize(); this.draw(); };
-        this.onVisibilityChange = () => (document.hidden ? this.stop() : this.start());
+        this.onResize = () => { if (this.frame || this.still) { this.resize(); this.draw(); } };
+        this.onVisibilityChange = () => this.sync();
         window.addEventListener('resize', this.onResize);
         document.addEventListener('visibilitychange', this.onVisibilityChange);
+        if (this.darkOnlyValue) {
+            this.themeObserver = new MutationObserver(() => this.sync());
+            this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        }
 
-        this.resize();
-        this.start();
+        this.sync();
     }
 
     disconnect() {
         this.stop();
+        this.themeObserver?.disconnect();
         window.removeEventListener('resize', this.onResize);
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
+
+    /** Runs while the tab is visible (and, when dark-only, while the theme is dark); otherwise stops. */
+    sync() {
+        const shown = !this.darkOnlyValue || document.documentElement.dataset.theme === 'dark';
+        if (shown && !document.hidden) {
+            this.resize();
+            this.start();
+        } else {
+            this.stop();
+        }
     }
 
     start() {
