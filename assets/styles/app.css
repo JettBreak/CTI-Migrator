@@ -123,7 +123,8 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .inline-form button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 /* Full-page loading overlay (assets/controllers/page_loader_controller.js); the fail-safe hides it if that never runs */
 .page-loader{display:none;position:fixed;inset:0;z-index:1000;background:#050b1cb8}
-/* Solid while a rocket swipe is on its way after signing in (swipe-pending, templates/base.html.twig): the same plain
+/* Solid while a rocket swipe is on its way (swipe-pending: arriving after signing in, templates/base.html.twig, and
+   leaving when signing out, controllers/rocket_swipe_controller.js): the same plain
    background as the sign-in page's loading overlay (.page-loader.solid), so nothing changes between the two pages and
    nothing of the page behind shows until the rocket wipes the overlay away. */
 /* Full window width (100vw includes the scrollbar), like the sign-in page, which has none: the card stays exactly

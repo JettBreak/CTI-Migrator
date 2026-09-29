@@ -3,7 +3,8 @@ import { requestRocketSwipe } from '../rocket_swipe.js';
 
 /*
  * Signing in or out: asks the next page to end its loading overlay with the rocket swipe (see ../rocket_swipe.js),
- * and, with the loader value, shows the loading overlay at once. The link or form then goes ahead as usual;
+ * and, with the loader value, shows the loading overlay at once, solid (swipe-pending, as the next page shows it
+ * too: app.css), so the backdrop does not change from this page to the next. The link or form then goes ahead as usual;
  * nothing waits for an animation. Left alone: modified clicks (new tab or window), and submits another
  * action cancelled (e.g. field-validation finding an empty field).
  *
@@ -18,7 +19,7 @@ export default class extends Controller {
 
         requestRocketSwipe(event.params.to);
         if (event.params.loader) {
-            document.documentElement.classList.add('page-loading');
+            document.documentElement.classList.add('page-loading', 'swipe-pending');
             document.documentElement.setAttribute('aria-busy', 'true');
         }
     }
