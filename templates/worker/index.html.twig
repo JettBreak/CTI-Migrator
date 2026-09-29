@@ -55,7 +55,7 @@
         <div><dt>Running since</dt><dd>{{ worker.state in ['running', 'stopping'] and hb ? hb.startedAt|date('M j, H:i:s') : '—' }}</dd></div>
         <div><dt>Last heartbeat</dt><dd>{{ hb ? hb.beatAt|date('M j, H:i:s') : '—' }}</dd></div>
         <div><dt>Now doing</dt><dd>{{ hb and hb.current ? hb.current.message ~ ' (since ' ~ hb.current.since|date('H:i:s') ~ ')' : (worker.state == 'running' ? 'Idle' : '—') }}</dd></div>
-        <div><dt>Jobs handled</dt><dd>{{ hb ? hb.handled : 0 }}{% if hb and hb.failed %} · <span class="text-red-700">{{ hb.failed }} failed</span>{% endif %}</dd></div>
+        <div><dt>Jobs handled</dt><dd>{{ hb ? hb.handled : 0 }}{% if hb and hb.failed %} · <span class="text-red-700 dark:text-red-400">{{ hb.failed }} failed</span>{% endif %}</dd></div>
         <div><dt>Last job</dt><dd>{{ hb and hb.last ? hb.last.message ~ ' at ' ~ hb.last.at|date('M j, H:i:s') : '—' }}</dd></div>
         <div><dt>Queue</dt><dd>{{ queued }} export(s) waiting · {{ running }} running</dd></div>
         <div><dt>Last switched</dt><dd>
