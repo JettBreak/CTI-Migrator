@@ -46,6 +46,8 @@ final class SecurityControllerTest extends AppTestCase
         $this->loginAs('officer');
         $this->client->request('GET', '/');
         self::assertSelectorExists('html[data-page-loader-arrival-value="app"]');
+        // Arriving after signing in, the overlay is kept solid until the swipe, so the page does not show through.
+        self::assertStringContainsString("classList.add('swipe-pending')", $this->client->getCrawler()->filter('head')->html());
         self::assertSelectorExists('header a[href^="/logout?_csrf_token="][data-controller="rocket-swipe"][data-action="rocket-swipe#depart"][data-rocket-swipe-to-param="sign-in"][data-rocket-swipe-loader-param="true"]');
         // The rocket, its trail and its sparks, cloned to wipe the loading overlay away.
         self::assertSelectorExists('template#rocket-swipe .rocket-swipe-front .rocket-swipe-craft svg.rocket');

@@ -119,7 +119,8 @@ export default class extends Controller {
     }
 
     hide() {
-        this.element.classList.remove('page-loading');
+        // swipe-pending (base.html.twig) kept the overlay solid for the swipe; later loads get the usual tint.
+        this.element.classList.remove('page-loading', 'swipe-pending');
         this.element.removeAttribute('aria-busy');
     }
 }

@@ -16,6 +16,19 @@
             document.documentElement.dataset.theme = dark ? 'dark' : 'light';
         })();
     </script>
+    {# Arriving from the sign-in page with a rocket swipe on its way (assets/rocket_swipe.js, the note's "app" and
+       30 seconds match it): keep the loading overlay solid, so nothing of this page shows until the rocket
+       wipes the overlay away. The page loader takes "swipe-pending" off again. #}
+    <script>
+        (function () {
+            try {
+                var note = JSON.parse(sessionStorage.getItem('rocket-swipe') || 'null');
+                if (note && note.to === 'app' && Date.now() - note.at < 30000 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    document.documentElement.classList.add('swipe-pending');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -39,7 +52,8 @@
     <meta name="turbo-refresh-scroll" content="preserve">
 </head>
 <body class="antialiased {% block page_class %}{% endblock %}">
-<div class="page-loader">{% include '_loading.html.twig' with {active: true} %}</div>
+{# Same label as the sign-in page's overlay, so the card does not change as a sign-in lands here. #}
+<div class="page-loader">{% include '_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 {{ include('_rocket_swipe.html.twig') }}<aside class="sidebar shadow-2xl shadow-slate-900/20">
     {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
     <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>

@@ -123,6 +123,15 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .inline-form button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 /* Full-page loading overlay (assets/controllers/page_loader_controller.js); the fail-safe hides it if that never runs */
 .page-loader{display:none;position:fixed;inset:0;z-index:1000;background:#050b1cb8}
+/* Solid while a rocket swipe is on its way after signing in (swipe-pending, templates/base.html.twig): the same plain
+   background as the sign-in page's loading overlay (.page-loader.solid), so nothing changes between the two pages and
+   nothing of the page behind shows until the rocket wipes the overlay away. */
+/* Full window width (100vw includes the scrollbar), like the sign-in page, which has none: the card stays exactly
+   where it was on the sign-in page instead of moving half a scrollbar to the left. */
+.swipe-pending .page-loader{background:#050b1c;right:auto;width:100vw}
+/* The overlay covers the page but not its scrollbar: paint the scrollbar in the overlay's colour meanwhile. Hiding it would
+   change the page's width, and the page would jump sideways when it came back after the swipe. */
+.swipe-pending{scrollbar-color:#050b1c #050b1c}
 .page-loader .loading-indicator{--rocket-window:#5c9bff;background:#0f2347f5;border-color:#24436f;box-shadow:0 18px 50px #000a,inset 0 1px 0 #ffffff14;color:#dbe7ff}
 .page-loader .loading-label{color:#9fb3d6}
 .page-loading .page-loader{display:block;animation:page-loader-failsafe 0s 8s forwards}
@@ -329,7 +338,7 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 [data-theme=dark] body:not(.login-page) .panel .panel,[data-theme=dark] body:not(.login-page) .action-tile{box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 [data-theme=dark] body:not(.login-page) .button.primary{box-shadow:0 6px 18px rgba(58,114,224,.35)}
 [data-theme=dark] body:not(.login-page) .directory-panel thead th{background:rgba(12,20,38,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-[data-theme=dark] body:not(.login-page) .loading-indicator:not(.compact){background:rgba(14,24,46,.88);border-color:var(--glass-edge);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+[data-theme=dark] body:not(.login-page) :not(.page-loader)>.loading-indicator:not(.compact){background:rgba(14,24,46,.88);border-color:var(--glass-edge);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 [data-theme=dark] body:not(.login-page) .confirm-modal{background:rgba(18,30,56,.78)}
 [data-theme=dark] body:not(.login-page) option{background:#101a2e;color:var(--ink)}
 /* Theme switch in the header: System, Light, Dark (assets/controllers/theme_controller.js) */
