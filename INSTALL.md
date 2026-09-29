@@ -92,7 +92,113 @@ server user and the user the worker runs as (the same user: the web app starts t
 
 ---
 
-## 4. Configure the environment
+## 4. Define the Coreware super user
+
+The super user is the installation's break-glass account. Its credentials are asked for before
+every `bin/console` command (see *Console authentication*), and it is the only one who can lock and
+unlock the whole app from the sign-in page (see *System lockout*).
+
+It is **not** an app account: it is not in the app database, it cannot sign in to the web pages,
+and the app's user administrators can't see, change or remove it. Its name and password hash live
+in the server configuration (`APP_SUPERUSER_USERNAME`, `APP_SUPERUSER_PASSWORD_HASH`). Decide
+beforehand who holds its password (e.g. the system owner, kept in the bank's password vault or a
+sealed envelope), because anyone who runs a console command on the server needs it.
+
+Define it before any other console command, because the commands in the next steps ask for it.
+From the project directory, in an interactive terminal (not a script, a pipe or a scheduled task),
+as the user that owns the project files:
+
+```bash
+php bin/console about
+```
+
+`composer install` doesn't ask for it (the commands it runs are exempt), so this is the first
+command that does. Because no super user is configured yet, it asks you to define one:
+
+1. **Super user name:** 3 to 180 letters, digits, dots, dashes, underscores or `@` (e.g.
+   `coreware.super`).
+2. **Password:** 12 to 128 characters, with upper case, lower case, a digit and a symbol, and not
+   containing the name. It isn't shown as you type.
+3. **Repeat the password.** You get three tries at steps 2 and 3; after that the command stops and
+   nothing is saved. Run it again.
+
+The name and a bcrypt/Argon2 hash of the password (never the password itself) are then added to
+`.env.local`, which is created if missing. Any older `APP_SUPERUSER_*` lines are replaced, and the
+rest of the file is kept:
+
+```bash
+# Coreware super user, defined on first console use (see App\Security\SuperUserSetup).
+APP_SUPERUSER_USERNAME=coreware.super
+APP_SUPERUSER_PASSWORD_HASH='$2y$13$…'
+```
+
+Keep the single quotes around the hash: it contains `$`. On Linux the file is made readable by its
+owner and group only (`0640`); on Windows, restrict it with the folder's permissions.
+
+Then check it: run `php bin/console about` again. It must now ask for **Super user** and
+**Password**, and run after you give them. Five wrong attempts in 15 minutes pause the console for
+that operating-system user.
+
+> The definition is only written to *Account audit trail* when the app database already exists. On a
+> new server it is logged in `var/log/` instead, because `app:database:init` hasn't run yet. Every
+> later console run is recorded under *Account audit trail* (target `system`).
+
+### Generating a password hash with the console
+
+To set or change the password hash by hand (for example to put it straight into the secrets vault
+or a real environment variable), use Symfony's password hashing command. It uses the same hasher
+as the app. From the project directory, in an interactive terminal:
+
+```bash
+php bin/console security:hash-password --env=prod
+```
+
+1. Like every console command, it first asks for the **current** super user. On a new server with
+   no super user yet, it asks you to define one instead (see above), which already writes the hash
+   for you.
+2. If it asks which user class to hash for, pick the first one offered
+   (`PasswordAuthenticatedUserInterface`).
+3. Type the new password at the **Type in your password to be hashed** prompt. It isn't shown as
+   you type. Don't pass the password as an argument on the command line, because it would be saved
+   in the shell history.
+4. Copy the **Password hash** value it prints (starting with `$2y$13$`).
+
+This command does **not** check the password rules. Follow them yourself: 12 to 128 characters,
+with upper case, lower case, a digit and a symbol, and not containing the super user name.
+
+Put the hash in `.env.local`, replacing the old value and keeping the single quotes:
+
+```bash
+APP_SUPERUSER_USERNAME=coreware.super
+APP_SUPERUSER_PASSWORD_HASH='$2y$13$…'
+```
+
+Or put it in the vault with `php bin/console secrets:set APP_SUPERUSER_PASSWORD_HASH --env=prod`
+(without quotes), or in a real environment variable. Check it by running `php bin/console about`,
+which must accept the new password.
+
+**Servers using `composer dump-env prod`:** the web pages read `.env.local.php`, not `.env.local`.
+The command warns about this; run `composer dump-env prod` again after defining or changing the
+super user, or the *Lockout* button won't accept it.
+
+**Keeping the hash in the secrets vault instead:** once the vault keys exist (section 5), run
+`php bin/console secrets:set APP_SUPERUSER_PASSWORD_HASH --env=prod`, paste the hash from
+`.env.local` (without the quotes), then delete the `APP_SUPERUSER_PASSWORD_HASH` line from
+`.env.local`. A value in `.env.local` or in a real environment variable takes precedence over the
+vault. The vault is per environment: a hash stored with `--env=prod` is only read when
+`APP_ENV=prod`. A command run in `dev` then finds a name but no hash, and asks you to define the
+super user again (press Ctrl+C there).
+
+**Changing the password:** remove both `APP_SUPERUSER_*` lines from `.env.local` (and the secret, if
+you used the vault), then run any console command: it defines the super user again as above. The same
+applies when the password is lost. While you still know the current password, you can instead
+generate a new hash with the console (see *Generating a password hash with the console*) and
+replace the `APP_SUPERUSER_PASSWORD_HASH` value. Access to that file is the real control over the
+super user, so restrict who can edit it.
+
+---
+
+## 5. Configure the environment
 
 `.env` is committed and holds defaults only. Put real values in `.env.local` (not committed), in
 real environment variables, or in the Symfony secrets vault for passwords.
@@ -108,8 +214,8 @@ real environment variables, or in the Symfony secrets vault for passwords.
 | `DEFAULT_URI` | `https://migration.bank.local` | Used to build links outside web requests. |
 | `MESSENGER_TRANSPORT_DSN` | `doctrine://app?auto_setup=0` | Keep the default: the queue lives in the app database. |
 | `LOCK_DSN` | `flock` | Keep the default for a single server. For several web servers, use a shared store (e.g. a `mysql://` DSN). |
-| `APP_SUPERUSER_USERNAME` | `coreware.super` | The Coreware super user: signs in to console commands and locks and unlocks the whole app (see *Console authentication* and *System lockout*). Not an app account. Leave both empty on a new server: the first console command asks for them and saves them to `.env.local`. |
-| `APP_SUPERUSER_PASSWORD_HASH` | `$2y$13$…` | Its password hash (from `php bin/console security:hash-password`, or written by the first console command). |
+| `APP_SUPERUSER_USERNAME` | `coreware.super` | The Coreware super user: signs in to console commands and locks and unlocks the whole app (see *Console authentication* and *System lockout*). Not an app account. Leave both empty on a new server: section 4 defines them and saves them to `.env.local`. |
+| `APP_SUPERUSER_PASSWORD_HASH` | `$2y$13$…` | Its password hash, written by section 4 (or by `php bin/console security:hash-password`, see *Generating a password hash with the console*). |
 
 Set `serverVersion` in every URL to the exact MySQL version of that server. `app:database:init`
 warns when the core server's version doesn't match.
@@ -125,6 +231,9 @@ php bin/console secrets:set APP_DATABASE_URL --env=prod
 php bin/console secrets:set APP_SUPERUSER_PASSWORD_HASH --env=prod
 ```
 
+Each of these asks for the super user defined in section 4. For `APP_SUPERUSER_PASSWORD_HASH`,
+paste the hash from `.env.local` and then delete that line there (see section 4).
+
 Commit `config/secrets/prod/*` **except** `prod.decrypt.private.php`. Copy that decryption key to
 the server separately, or provide it as the `SYMFONY_DECRYPTION_SECRET` environment variable.
 
@@ -136,14 +245,14 @@ composer dump-env prod
 
 ---
 
-## 5. Create the app database
+## 6. Create the app database
 
 ```bash
 php bin/console app:database:init
 ```
 
-On a new server this is the first command that asks for Coreware authentication, so it first asks
-you to define the super user (see *Console authentication*).
+It asks for the super user defined in section 4. If you skipped that section, it asks you to define
+the super user first.
 
 This creates `data_migration` if it is missing, runs every migration (accounts, batches, audit
 trails, the message queue), and compares the core server's MySQL version with the configured one.
@@ -151,7 +260,7 @@ Run it again after every upgrade. It is safe to repeat.
 
 ---
 
-## 6. Build assets and warm the cache (production)
+## 7. Build assets and warm the cache (production)
 
 ```bash
 php bin/console asset-map:compile
@@ -163,7 +272,7 @@ after every upgrade.
 
 ---
 
-## 7. Web server
+## 8. Web server
 
 Point the document root at **`public/`** and send every request that isn't a file to
 `public/index.php`. Follow Symfony's guide for your server:
@@ -208,7 +317,7 @@ project's `php.ini`.
 
 ---
 
-## 8. Create the first accounts
+## 9. Create the first accounts
 
 Accounts live in the app database. Every change on the *Users* page is requested by one user
 administrator and approved by another. Create **two** administrators from the server console to
@@ -246,7 +355,7 @@ php bin/console app:user:account enable <username>
 
 ---
 
-## 9. Start the background worker
+## 10. Start the background worker
 
 Sign in as a migration officer or approver, open **Background worker**, and switch it **on**. It
 runs `bin/console messenger:consume async scheduler_default` as a detached process and writes to
@@ -270,7 +379,7 @@ If you do this, don't also switch it on from the page.
 
 ---
 
-## 10. Check the installation
+## 11. Check the installation
 
 - [ ] `php bin/console about` shows the right environment (`prod`) and debug `false`.
 - [ ] `php bin/console lint:container` succeeds.
@@ -433,6 +542,7 @@ database.
 | All administrators locked out | `php bin/console app:user:account unlock <admin>` or `reset-password <admin>` on the server. |
 | A batch page says *Rows permanently deleted* | Its rows were removed under the fixed 90-day data-retention rule (see *Data retention*). They cannot be restored from the app; upload the file again. |
 | A command stops with *needs Coreware authentication* | It was run without a terminal (script, pipe, `--no-interaction`). Run it in an interactive shell. |
+| *No Coreware super user is defined* although it is in the secrets vault | The hash is in another environment's vault (e.g. `prod`) than the one the command runs in (`APP_ENV`, often `dev`). Press Ctrl+C, then run with `--env=prod`, set `APP_ENV=prod`, or add the hash (`secrets:reveal APP_SUPERUSER_PASSWORD_HASH --env=prod`) to `.env.local`. |
 | Super user password lost | Remove the `APP_SUPERUSER_*` lines from `.env.local`; the next console command defines a new super user. |
 | Sign-in page says *Data migration is locked* | The super user locked the app (reason under *Account audit trail*). Unlock with the super user, or `app:system:unlock` on the server. *Failed its integrity check* means the lock file was edited or `APP_SECRET` changed. |
 | Uploads rejected as too large | PHP's `upload_max_filesize` / `post_max_size` (section 1) and `app.batch.upload_max_size`. |
