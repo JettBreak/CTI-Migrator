@@ -7,6 +7,8 @@ use Symfony\Bridge\Twig\ErrorRenderer\TwigErrorRenderer;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Twig\Environment;
 
@@ -38,16 +40,25 @@ final class ErrorPageTest extends AppTestCase
         self::assertCount(0, $page->selectLink('Sign out'));
     }
 
-    private function renderError(Request $request): Crawler
+    public function testNotFoundPageShowsTheAddressAndLinksToTheStartPage(): void
+    {
+        $page = $this->renderError(Request::create('/no-such-page'), new NotFoundHttpException());
+
+        self::assertStringContainsString('lost in space', $page->filter('h1')->text());
+        self::assertStringContainsString('GET /no-such-page', $page->filter('main')->text());
+        self::assertSame('/account/start', $page->selectLink('Go to my start page')->attr('href'));
+    }
+
+    private function renderError(Request $request, HttpException $error = new AccessDeniedHttpException()): Crawler
     {
         $container = static::getContainer();
         $request->setSession($container->get('session.factory')->createSession());
         $container->get('request_stack')->push($request);
 
         $renderer = new TwigErrorRenderer($container->get(Environment::class), debug: false);
-        $exception = $renderer->render(new AccessDeniedHttpException());
+        $exception = $renderer->render($error);
 
-        self::assertSame(403, $exception->getStatusCode());
+        self::assertSame($error->getStatusCode(), $exception->getStatusCode());
 
         return new Crawler($exception->getAsString(), 'http://localhost/');
     }

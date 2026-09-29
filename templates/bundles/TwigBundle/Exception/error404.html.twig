@@ -1,0 +1,32 @@
+{#
+ # Shown for 404 Not Found when debug is off (in dev, preview it at /_error/404).
+ # Unknown URLs fail in routing, before the firewall runs, so no user is known here: the start page
+ # link sends a signed-in user to their own start page and anyone else to the sign-in page.
+ #}
+{% extends '_signed_out_layout.html.twig' %}
+
+{% block title %}Page not found{% endblock %}
+
+{% block body %}
+<main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
+    <div class="w-full max-w-2xl lg:pl-40">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1 mb-5" style="background:rgba(92,155,255,.12);color:#8fc0ff;border:1px solid rgba(92,155,255,.3)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg>
+            Error 404 · Not found
+        </span>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">This page is<br>lost in space</h1>
+        <div class="w-full max-w-sm space-y-4">
+            <p class="text-sm leading-6" style="color:#87a4d4">
+                The address may be mistyped, or the page may have moved or no longer exist.
+                Check the link, or go back to your start page.
+            </p>
+            {% if app.request %}
+                <p class="text-xs rounded-md px-3 py-2 font-mono break-all" style="background:#0b1a36cc;color:#8ea7cf;border:1px solid #24436f">{{ app.request.method }} {{ app.request.pathInfo }}</p>
+            {% endif %}
+            <div class="pt-2">
+                <a href="{{ path('app_home') }}" class="button primary h-12 w-full" style="margin:0" data-turbo="false">Go to my start page</a>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
