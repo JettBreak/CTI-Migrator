@@ -12,6 +12,7 @@ use App\Repository\AuditEntryRepository;
 use App\Repository\MigrationBatchRepository;
 use App\Repository\MigrationRowRepository;
 use App\Security\BatchVoter;
+use App\Service\BatchRowPurger;
 use App\Service\CsvResponseFactory;
 use App\Worker\WorkerSupervisor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -92,6 +93,10 @@ final class BatchController extends AbstractController
             'total' => $total,
             'invalid_only' => $invalid,
             'busy' => $busy,
+            // Data retention (BatchRowPurger): when the rows of a Rejected, Invalid or Failed batch are
+            // (or were) permanently deleted, and whether that has happened.
+            'rows_due_on' => BatchRowPurger::dueOn($batch),
+            'rows_purged' => BatchRowPurger::applies($batch) && $batch->getRowCount() > 0 && !$rows->hasRows($batch),
             // Finished replacing or rolling back moments ago: the progress bar stays up to finish its
             // animation (the page's last auto-refresh lands in this window).
             'just_finished' => \in_array($batch->getStatus(), [BatchStatus::Completed, BatchStatus::RolledBack], true)

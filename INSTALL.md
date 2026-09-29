@@ -352,6 +352,39 @@ the app database exists.
 
 ---
 
+## Data retention: batch rows are deleted after 90 days (fixed rule)
+
+> **This is a fixed rule of the application, not a setting, and it cannot be turned off from the app.
+> Deleted rows cannot be restored: the app keeps no copy of them, and only a database backup taken
+> before the deletion still holds them.**
+
+The rows of a mapping file (table `migration_row`) are **permanently deleted 90 days after a batch
+ended** in one of these statuses:
+
+| Status | Why it is safe to delete | 90 days count from |
+|---|---|---|
+| **Rejected** | An approver rejected it; it was never applied. | the rejection |
+| **Invalid** | It had rows needing correction and was not submitted as it stood. | the upload (validation finishes right after it) |
+| **Failed** | It stopped before renaming anything (a batch that renamed some accounts is *Halted* instead). | the failure |
+
+- **Never deleted:** rows of **Completed**, **Halted**, **Rolled back** and in-progress batches. Rollback,
+  the migrated-accounts report and the record of what changed in core depend on them.
+- **Kept:** the batch itself (file name, status, row and account counts, dates) and its audit trail,
+  which records each deletion (*Rows purged*, with how many rows).
+- **When it runs:** as part of the regular cleanup: hourly while the background worker is on, with
+  **Run cleanup now** on the *Background worker* page, and with `php bin/console app:exports:cleanup`.
+  With the worker off and no manual cleanup, nothing is deleted.
+- **What users see:** the batch page shows the date its rows will be deleted, and afterwards that they
+  were deleted. An *Invalid* batch whose rows are gone can no longer proceed with its valid rows; upload
+  the file again.
+- **Changing it:** the period and statuses are constants in `src/Service/BatchRowPurger.php`. Changing
+  them is a code change to be reviewed and released, not configuration.
+
+If the rows of such batches must be kept longer (for an audit, for example), take and keep database
+backups of the app database: once deleted, the rows are gone from the application for good.
+
+---
+
 ## Upgrading
 
 Check [UPGRADE.md](UPGRADE.md) first for steps specific to the release you are moving to. The
@@ -398,6 +431,7 @@ database.
 | Worker won't start or stops | `var/log/worker-error.log`, `var/log/worker.log`, and the log tail on the *Background worker* page. |
 | "Invalid username or password" for a known user | The reason (wrong password, locked, disabled, dormant) is recorded under *Account audit trail*. Unlock with an administrator or `app:user:account unlock`. |
 | All administrators locked out | `php bin/console app:user:account unlock <admin>` or `reset-password <admin>` on the server. |
+| A batch page says *Rows permanently deleted* | Its rows were removed under the fixed 90-day data-retention rule (see *Data retention*). They cannot be restored from the app; upload the file again. |
 | A command stops with *needs Coreware authentication* | It was run without a terminal (script, pipe, `--no-interaction`). Run it in an interactive shell. |
 | Super user password lost | Remove the `APP_SUPERUSER_*` lines from `.env.local`; the next console command defines a new super user. |
 | Sign-in page says *Data migration is locked* | The super user locked the app (reason under *Account audit trail*). Unlock with the super user, or `app:system:unlock` on the server. *Failed its integrity check* means the lock file was edited or `APP_SECRET` changed. |

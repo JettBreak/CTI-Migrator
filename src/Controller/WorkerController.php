@@ -75,7 +75,7 @@ final class WorkerController extends AbstractController
     public function cleanup(): Response
     {
         $report = $this->cleaner->run($this->getUser()->getUserIdentifier());
-        $this->addFlash('success', sprintf('Cleanup done: %d export(s) expired, %d file(s) removed.', $report['expired'], $report['files']));
+        $this->addFlash('success', sprintf('Cleanup done: %d export(s) expired, %d file(s) removed, rows of %d batch(es) permanently deleted under data retention.', $report['expired'], $report['files'], $report['purged_batches']));
 
         return $this->redirectToRoute('app_worker', status: Response::HTTP_SEE_OTHER);
     }

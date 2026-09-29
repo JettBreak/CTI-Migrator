@@ -58,7 +58,14 @@
         <div><dt>Applied</dt><dd>{% if batch.status.value == 'completed' %}{{ batch.processedAt|date('M j, Y H:i') }}{% elseif batch.appliedAccountCount > 0 %}{{ batch.appliedAccountCount|number_format }} of {{ batch.accountCount|number_format }} accounts{% else %}—{% endif %}</dd></div>
     </dl>
 
-    {% if batch.status.value == 'invalid' %}
+    {# Data retention, a fixed rule (App\Service\BatchRowPurger): the rows of Rejected, Invalid and Failed batches are
+       permanently deleted 90 days after the batch ended. #}
+    {% if rows_purged %}
+        <div class="exception"><span>!</span> <div><b>Rows permanently deleted.</b> Under the fixed data-retention rule, the rows of this batch were deleted {{ rows_due_on ? 'on or after ' ~ rows_due_on|date('M j, Y') }}, 90 days after it ended as {{ batch.status.label|lower }}. They cannot be restored. The batch record, its counts and its audit trail are kept. To migrate these accounts, upload the file again.</div></div>
+    {% elseif rows_due_on %}
+        <div class="exception notice"><span>i</span> <div><b>Data retention:</b> the rows of this batch will be permanently deleted on {{ rows_due_on|date('M j, Y') }}, 90 days after it ended as {{ batch.status.label|lower }}. This is a fixed rule and deleted rows cannot be restored; the batch record, its counts and its audit trail are kept.</div></div>
+    {% endif %}
+    {% if batch.status.value == 'invalid' and not rows_purged %}
         <p class="exception"><span>!</span> {{ batch.invalidRowCount|number_format }} row(s) need correction. Correct them in your file and upload it again{% if batch.validRowCount > 0 %}, or proceed with the valid rows only: the rows that need correction are skipped{% endif %}.</p>
     {% elseif batch.status.value in ['failed', 'halted', 'rollback_halted'] %}
         <p class="exception"><span>!</span> {{ batch.failureReason }}</p>
@@ -90,7 +97,7 @@
             <p class="muted">Only {{ batch.uploadedBy }} can submit this batch.</p>
         {% endif %}
 
-        {% if is_granted('BATCH_SUBMIT_VALID', batch) %}
+        {% if is_granted('BATCH_SUBMIT_VALID', batch) and not rows_purged %}
             <form autocomplete="off" method="post" action="{{ path('app_batch_submit_valid', {id: batch.id}) }}"
                   data-controller="confirm" data-action="submit->confirm#ask"
                   data-confirm-title-value="Proceed with the {{ batch.validRowCount|number_format }} valid row(s) only?"

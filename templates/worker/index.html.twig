@@ -68,7 +68,7 @@
 </section>
 
 <section class="panel pad">
-    <div class="panel-title"><div><span class="eyebrow">EXPORT FILES</span><h2>Automatic cleanup</h2></div>
+    <div class="panel-title"><div><span class="eyebrow">EXPORT FILES AND DATA RETENTION</span><h2>Automatic cleanup</h2></div>
         <form autocomplete="off" method="post" action="{{ path('app_worker_cleanup') }}">
             <input type="hidden" name="_token" value="{{ csrf_token('worker') }}">
             <button class="button outline small">Run cleanup now</button>
@@ -77,8 +77,9 @@
     <dl class="facts">
         <div><dt>Retention</dt><dd>{{ retention }}, checked hourly while the worker is on</dd></div>
         <div><dt>Stored now</dt><dd>{{ usage.files }} file(s) · {{ (usage.bytes / 1048576)|number_format(1) }} MB</dd></div>
-        <div><dt>Last cleanup</dt><dd>{% if last_cleanup %}{{ last_cleanup.at|date('M j, H:i') }} by {{ last_cleanup.by }} — {{ last_cleanup.expired }} expired, {{ last_cleanup.files }} file(s) removed{% else %}Not run yet{% endif %}</dd></div>
+        <div><dt>Last cleanup</dt><dd>{% if last_cleanup %}{{ last_cleanup.at|date('M j, H:i') }} by {{ last_cleanup.by }} — {{ last_cleanup.expired }} expired, {{ last_cleanup.files }} file(s) removed, {{ (last_cleanup.purged_rows ?? 0)|number_format }} batch row(s) deleted{% else %}Not run yet{% endif %}</dd></div>
     </dl>
+    <div class="exception"><span>!</span> <div><b>Data retention, a fixed rule:</b> the same cleanup permanently deletes the rows of <b>Rejected</b>, <b>Invalid</b> and <b>Failed</b> batches 90 days after the batch ended. These batches never changed core. Completed, Halted and Rolled back batches keep their rows. The batch record, its counts and its audit trail are kept, and each deletion is recorded there. <b>Deleted rows cannot be restored</b> by the app; only a database backup taken before the deletion has them.</div></div>
 </section>
 
 <section class="panel pad">

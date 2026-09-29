@@ -13,10 +13,13 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 
 /**
- * Keeps var/exports from growing forever:
+ * The regular cleanup (hourly in the worker, "Run cleanup now", app:exports:cleanup). Keeps var/exports
+ * from growing forever:
  *  - completed exports older than the retention period lose their file and become "Expired";
  *  - jobs stuck "Running" for hours (worker killed mid-export) are marked failed;
  *  - leftover partial files and files without a live job are deleted.
+ * It also applies the fixed data-retention rule for batch rows (BatchRowPurger): the rows of Rejected,
+ * Invalid and Failed batches are permanently deleted 90 days after the batch ended.
  */
 final class ExportCleaner
 {
@@ -29,6 +32,7 @@ final class ExportCleaner
         private readonly CardExport $export,
         private readonly Filesystem $filesystem,
         private readonly LoggerInterface $logger,
+        private readonly BatchRowPurger $purger,
         #[Autowire(service: 'cache.app')] private readonly CacheItemPoolInterface $cache,
         #[Autowire('%app.export.retention%')] private readonly string $retention,
         #[Autowire('%app.export.dir%')] private readonly string $directory,
@@ -40,11 +44,11 @@ final class ExportCleaner
         return $this->retention;
     }
 
-    /** @return array{at: \DateTimeImmutable, by: string, expired: int, interrupted: int, files: int, bytes: int} */
+    /** @return array{at: \DateTimeImmutable, by: string, expired: int, interrupted: int, files: int, bytes: int, purged_batches: int, purged_rows: int} */
     public function run(string $by): array
     {
         $now = new \DateTimeImmutable();
-        $report = ['at' => $now, 'by' => $by, 'expired' => 0, 'interrupted' => 0, 'files' => 0, 'bytes' => 0];
+        $report = ['at' => $now, 'by' => $by, 'expired' => 0, 'interrupted' => 0, 'files' => 0, 'bytes' => 0, 'purged_batches' => 0, 'purged_rows' => 0];
 
         foreach ($this->jobs->findCompletedBefore($now->modify('-'.$this->retention)) as $job) {
             $this->delete($this->export->pathFor($job), $report);
@@ -59,13 +63,17 @@ final class ExportCleaner
 
         $this->removeStrayFiles($now, $report);
 
+        $purged = $this->purger->purge($by);
+        $report['purged_batches'] = $purged['batches'];
+        $report['purged_rows'] = $purged['rows'];
+
         $this->logger->info('Export cleanup by {by}: {expired} expired, {interrupted} interrupted, {files} file(s) / {bytes} bytes removed', $report);
         $this->cache->save($this->cache->getItem(self::LAST_RUN_KEY)->set($report));
 
         return $report;
     }
 
-    /** @return array{at: \DateTimeImmutable, by: string, expired: int, interrupted: int, files: int, bytes: int}|null */
+    /** @return array{at: \DateTimeImmutable, by: string, expired: int, interrupted: int, files: int, bytes: int, purged_batches?: int, purged_rows?: int}|null */
     public function lastRun(): ?array
     {
         $item = $this->cache->getItem(self::LAST_RUN_KEY);

@@ -10,6 +10,7 @@ use App\Entity\MigrationRow;
 use App\Enum\BatchStatus;
 use App\Message\ProcessBatch;
 use App\Repository\MigrationRowRepository;
+use App\Service\BatchRowPurger;
 use App\Service\BatchReportExport;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -86,6 +87,9 @@ final class BatchWorkflow
     public function submitValidRows(MigrationBatch $batch, string $user): void
     {
         $this->underLock($batch, BatchStatus::Invalid, function () use ($batch, $user): void {
+            if (!$this->rows->hasRows($batch)) {
+                throw new BatchLocked(\sprintf('The rows of this batch were permanently deleted %s after it was found to need correction, so it can no longer proceed. Upload the file again.', BatchRowPurger::RETENTION));
+            }
             $accounts = $this->rows->countFullyValidAccounts($batch);
             if (0 === $accounts) {
                 throw new BatchLocked('Every account in this batch has a row that needs correction, so there is nothing to replace. Correct the file and upload it again.');

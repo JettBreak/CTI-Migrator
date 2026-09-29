@@ -59,6 +59,29 @@ class MigrationRowRepository extends ServiceEntityRepository
         }
     }
 
+    /** Whether any rows of $batch are still stored (see App\Service\BatchRowPurger). */
+    public function hasRows(MigrationBatch $batch): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne('SELECT 1 FROM migration_row WHERE batch_id = ? LIMIT 1', [$batch->getId()]);
+    }
+
+    /**
+     * Permanently deletes every row of $batch (see App\Service\BatchRowPurger) and returns how many.
+     * A few thousand rows per statement, so no single delete holds locks for long on a large batch.
+     */
+    public function purgeForBatch(MigrationBatch $batch): int
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        // SQLite (tests) allows 999 bound values per statement.
+        $chunk = $connection->getDatabasePlatform() instanceof SQLitePlatform ? 900 : 5000;
+        $total = 0;
+        while ($ids = $connection->fetchFirstColumn('SELECT id FROM migration_row WHERE batch_id = ? ORDER BY id LIMIT '.$chunk, [$batch->getId()])) {
+            $total += $connection->executeStatement('DELETE FROM migration_row WHERE id IN (?)', [$ids], [ArrayParameterType::INTEGER]);
+        }
+
+        return $total;
+    }
+
     public function deleteForBatch(MigrationBatch $batch): void
     {
         $this->getEntityManager()->createQuery('DELETE FROM '.MigrationRow::class.' r WHERE r.batch = :batch')
