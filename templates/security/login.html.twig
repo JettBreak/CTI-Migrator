@@ -52,7 +52,7 @@
         {% else %}
         <div class="console-kicker" aria-hidden="true">&gt; CORE ACCOUNT MIGRATION <span>// CONSOLE</span></div>
         <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>data migration</h1>
-        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation" data-action="field-validation#validate page-loader#show">
+        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation rocket-swipe" data-action="field-validation#validate page-loader#show rocket-swipe#depart" data-rocket-swipe-to-param="app">
             <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
             {% if error %}
                 <p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error }}</p>

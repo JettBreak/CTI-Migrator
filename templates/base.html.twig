@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="page-loading" data-controller="page-loader">
+<html lang="en" class="page-loading" data-controller="page-loader" data-page-loader-arrival-value="app">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,7 +40,7 @@
 </head>
 <body class="antialiased {% block page_class %}{% endblock %}">
 <div class="page-loader">{% include '_loading.html.twig' with {active: true} %}</div>
-<aside class="sidebar shadow-2xl shadow-slate-900/20">
+{{ include('_rocket_swipe.html.twig') }}<aside class="sidebar shadow-2xl shadow-slate-900/20">
     {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
     <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
     {% set route = app.request.attributes.get('_route') %}
@@ -92,7 +92,7 @@
             {% set me = app.user %}
             {# The sign-in before this one, so the user can spot one that was not theirs. #}
             {% set previous = me.previousLoginAt ? 'Previous sign-in ' ~ me.previousLoginAt|date('M j, Y H:i') ~ (me.previousLoginIp ? ' from ' ~ me.previousLoginIp : '') : 'First sign-in' %}
-            <div class="profile" title="{{ previous }}"><div class="avatar">{{ me.displayName|split(' ')|map(p => p|first)|join|slice(0, 2)|upper }}</div><div><b>{{ me.displayName }}</b><small>{{ me.username }} · {{ me.role.label }} · <a href="{{ logout_path() }}" data-turbo="false">Sign out</a></small><small class="profile-last">{{ previous }}</small></div></div>
+            <div class="profile" title="{{ previous }}"><div class="avatar">{{ me.displayName|split(' ')|map(p => p|first)|join|slice(0, 2)|upper }}</div><div><b>{{ me.displayName }}</b><small>{{ me.username }} · {{ me.role.label }} · <a href="{{ logout_path() }}" data-turbo="false" data-controller="rocket-swipe" data-action="rocket-swipe#depart" data-rocket-swipe-to-param="sign-in" data-rocket-swipe-loader-param="true">Sign out</a></small><small class="profile-last">{{ previous }}</small></div></div>
         {% endif %}
         </div>
     </header>

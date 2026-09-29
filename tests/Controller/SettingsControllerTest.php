@@ -36,7 +36,7 @@ final class SettingsControllerTest extends AppTestCase
         $this->client->request('GET', '/cards');
         self::assertSelectorExists('.directory-panel > .loading-indicator[data-animation="dinosaur"] svg.dino');
         self::assertSelectorExists('.page-loader .loading-indicator[data-animation="dinosaur"]');
-        self::assertSelectorNotExists('svg.rocket');
+        self::assertSelectorNotExists('.loading-indicator svg.rocket');
     }
 
     public function testSavingTheAnimationInUseChangesNothing(): void

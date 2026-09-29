@@ -365,3 +365,14 @@ html.theme-reveal::view-transition-new(root){animation:theme-reveal 1.5s cubic-b
 @keyframes theme-reveal{from{clip-path:circle(0 at var(--theme-x) var(--theme-y))}to{clip-path:circle(var(--theme-r) at var(--theme-x) var(--theme-y))}}
 html.theme-fading,html.theme-fading *,html.theme-fading *::before,html.theme-fading *::after{transition:background-color 1s ease,color 1s ease,border-color 1s ease,fill 1s ease,box-shadow 1s ease}
 @media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
+/* Rocket swipe (assets/rocket_swipe.js, templates/_rocket_swipe.html.twig): right after signing in or out, on the
+   page the user arrives on, the pixel rocket crosses the screen and its glowing trail wipes the loading overlay away
+   (.rocket-swipe-front: the trail and the rocket, whose tail is the edge of the wipe), shedding sparks. */
+.rocket-swipe{position:fixed;inset:0;z-index:1001;overflow:hidden;pointer-events:none}
+.rocket-swipe-front{position:absolute;top:0;bottom:0;left:0;width:0;will-change:transform}
+.rocket-swipe-seam{position:absolute;top:0;bottom:0;right:0;width:22vw;
+    background:linear-gradient(90deg,transparent,rgba(245,154,35,.06) 45%,rgba(255,200,120,.22) 88%,rgba(255,230,180,.45));
+    -webkit-mask-image:linear-gradient(180deg,transparent 18%,#000 44%,#000 56%,transparent 82%);mask-image:linear-gradient(180deg,transparent 18%,#000 44%,#000 56%,transparent 82%)}
+.rocket-swipe-craft{position:absolute;left:0;top:50%;width:clamp(96px,11vw,170px);transform:translateY(-50%);color:#dbe7ff;--rocket-window:#5c9bff}
+.rocket-swipe-craft .rocket{width:100%;height:auto;animation:none;filter:drop-shadow(0 0 12px rgba(245,154,35,.6))}
+.rocket-swipe-sparks i{position:absolute;width:5px;height:5px;background:#ffd48a}
