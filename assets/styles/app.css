@@ -355,3 +355,13 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 .loader-option-head b{display:block}.loader-option-head small{display:block;margin-top:2px}
 .loader-option .loading-indicator{position:static;transform:none;box-shadow:none;background:var(--surface-2)}
 .loader-option .current{margin-left:auto}
+/* Theme change (assets/controllers/theme_controller.js). With View Transitions the whole page is snapshotted
+   and the new theme either crossfades in (a system change) or is revealed in a circle spreading from the
+   clicked button (html.theme-reveal, centred on --theme-x/--theme-y, growing to --theme-r). Without them,
+   html.theme-fading eases the colours for the moment of the switch. */
+::view-transition-old(root),::view-transition-new(root){animation-duration:1.2s;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+html.theme-reveal::view-transition-old(root){animation:none}
+html.theme-reveal::view-transition-new(root){animation:theme-reveal 1.5s cubic-bezier(.4,0,.2,1)}
+@keyframes theme-reveal{from{clip-path:circle(0 at var(--theme-x) var(--theme-y))}to{clip-path:circle(var(--theme-r) at var(--theme-x) var(--theme-y))}}
+html.theme-fading,html.theme-fading *,html.theme-fading *::before,html.theme-fading *::after{transition:background-color 1s ease,color 1s ease,border-color 1s ease,fill 1s ease,box-shadow 1s ease}
+@media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
