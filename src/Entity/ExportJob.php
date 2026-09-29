@@ -84,6 +84,12 @@ class ExportJob implements RecordsTimezone
         $this->state = ExportState::Expired;
     }
 
+    /** The worker running it stopped before it finished (see App\Worker\InterruptedExportsListener, App\Service\ExportCleaner). */
+    public function interrupt(): void
+    {
+        $this->fail('Interrupted: the worker stopped before this export finished. Request it again.');
+    }
+
     public function fail(string $error): void
     {
         $this->state = ExportState::Failed;

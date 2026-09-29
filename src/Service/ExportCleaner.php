@@ -56,7 +56,7 @@ final class ExportCleaner
             ++$report['expired'];
         }
         foreach ($this->jobs->findInState(ExportState::Running, $now->modify('-'.self::STUCK_AFTER)) as $job) {
-            $job->fail('Interrupted: the worker stopped before this export finished. Request it again.');
+            $job->interrupt();
             ++$report['interrupted'];
         }
         $this->em->flush();
