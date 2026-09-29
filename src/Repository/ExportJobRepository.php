@@ -52,6 +52,11 @@ class ExportJobRepository extends ServiceEntityRepository
 
     public function hasUnfinished(): bool
     {
-        return $this->count(['state' => [ExportState::Queued, ExportState::Running]]) > 0;
+        return $this->countUnfinished() > 0;
+    }
+
+    public function countUnfinished(): int
+    {
+        return $this->count(['state' => [ExportState::Queued, ExportState::Running]]);
     }
 }

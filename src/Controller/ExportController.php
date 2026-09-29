@@ -54,11 +54,18 @@ final class ExportController extends AbstractController
     public function index(WorkerSupervisor $worker, QueueInspector $queue): Response
     {
         $jobs = $this->jobs->findRecent();
+        $held = $queue->heldExports();
+        $unfinished = $this->jobs->countUnfinished();
 
         return $this->render('export/index.html.twig', [
             'worker_on' => $worker->isRunning(),
             // Queued exports a stopped worker took and never started: job id => when they are retried.
-            'held' => $queue->heldExports(),
+            'held' => $held,
+            // Seconds between refreshes while exports are unfinished: every 5, or, when all of them are held
+            // and nothing can change before then, just after the first is retried.
+            'refresh_every' => $unfinished > 0 && \count($held) === $unfinished
+                ? max(5, min($held)->getTimestamp() - time() + 5)
+                : 5,
             'jobs' => $jobs,
             // Job id => whether its file can be downloaded right now.
             'available' => array_combine(array_map(static fn (ExportJob $j) => $j->getId(), $jobs), array_map($this->export->isAvailable(...), $jobs)),

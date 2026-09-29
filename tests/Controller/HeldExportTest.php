@@ -40,6 +40,18 @@ final class HeldExportTest extends AppTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorCount(1, 'td small:contains("Held by a stopped worker")');
         self::assertSelectorTextContains('tbody', 'Held by a stopped worker · retried at '.$retryAt);
+        self::assertSelectorExists('[data-controller="auto-refresh"][data-auto-refresh-interval-value="5"]', 'Another export can start any moment');
+    }
+
+    public function testWithOnlyHeldExportsThePageRefreshesWhenTheFirstIsRetried(): void
+    {
+        $this->loginAs('officer');
+        $this->queueExport(claimedMinutesAgo: 10); // retried in 50 minutes
+
+        $this->client->request('GET', '/exports');
+        $every = (int) $this->client->getCrawler()->filter('[data-controller="auto-refresh"]')->attr('data-auto-refresh-interval-value');
+        self::assertEqualsWithDelta(50 * 60 + 5, $every, 10);
+        self::assertSelectorTextContains('.page-head', 'this page refreshes again when it is retried');
     }
 
     public function testNothingIsShownWithoutAQueueTable(): void

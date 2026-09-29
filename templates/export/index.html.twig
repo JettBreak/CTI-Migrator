@@ -4,12 +4,12 @@
 {% block crumb %}Exports{% endblock %}
 
 {% block body %}
-{% if refresh %}<div hidden data-controller="auto-refresh" data-auto-refresh-interval-value="5"></div>{% endif %}
+{% if refresh %}<div hidden data-controller="auto-refresh" data-auto-refresh-interval-value="{{ refresh_every }}"></div>{% endif %}
 <section class="page-head compact">
     <div>
         <span class="eyebrow">DATA MANAGEMENT</span>
         <h1>Exports</h1>
-        <p>Card exports over {{ sync_max_rows|number_format }} rows are prepared in the background.{% if refresh %} This page refreshes every 5 seconds while one is running.{% endif %}</p>
+        <p>Card exports over {{ sync_max_rows|number_format }} rows are prepared in the background.{% if refresh %}{% if refresh_every > 5 %} Waiting for a held export: this page refreshes again when it is retried.{% else %} This page refreshes every 5 seconds while one is running.{% endif %}{% endif %}</p>
     </div>
     {{ include('export/_button.html.twig', {label: '⇩ Export all cards'}) }}
 </section>
