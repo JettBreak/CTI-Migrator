@@ -108,8 +108,8 @@ real environment variables, or in the Symfony secrets vault for passwords.
 | `DEFAULT_URI` | `https://migration.bank.local` | Used to build links outside web requests. |
 | `MESSENGER_TRANSPORT_DSN` | `doctrine://app?auto_setup=0` | Keep the default: the queue lives in the app database. |
 | `LOCK_DSN` | `flock` | Keep the default for a single server. For several web servers, use a shared store (e.g. a `mysql://` DSN). |
-| `APP_SUPERUSER_USERNAME` | `coreware.super` | The super user who locks and unlocks the whole app (see *System lockout*). Not an app account. Empty: the lock can't be set or lifted from the web. |
-| `APP_SUPERUSER_PASSWORD_HASH` | `$2y$13$…` | Its password hash, from `php bin/console security:hash-password`. Keep it in the secrets vault. |
+| `APP_SUPERUSER_USERNAME` | `coreware.super` | The Coreware super user: signs in to console commands and locks and unlocks the whole app (see *Console authentication* and *System lockout*). Not an app account. Leave both empty on a new server: the first console command asks for them and saves them to `.env.local`. |
+| `APP_SUPERUSER_PASSWORD_HASH` | `$2y$13$…` | Its password hash (from `php bin/console security:hash-password`, or written by the first console command). |
 
 Set `serverVersion` in every URL to the exact MySQL version of that server. `app:database:init`
 warns when the core server's version doesn't match.
@@ -141,6 +141,9 @@ composer dump-env prod
 ```bash
 php bin/console app:database:init
 ```
+
+On a new server this is the first command that asks for Coreware authentication, so it first asks
+you to define the super user (see *Console authentication*).
 
 This creates `data_migration` if it is missing, runs every migration (accounts, batches, audit
 trails, the message queue), and compares the core server's MySQL version with the configured one.
@@ -324,6 +327,29 @@ the super user (e.g. a lost password or a changed `APP_SECRET`):
 php bin/console app:system:unlock "Reason for the audit trail"
 ```
 
+This command asks for the super user like every other one. If its password is lost, remove the
+`APP_SUPERUSER_USERNAME` and `APP_SUPERUSER_PASSWORD_HASH` lines from `.env.local`; the next command
+then asks you to define a new super user.
+
+---
+
+## Console authentication
+
+Every `bin/console` command asks for the Coreware super user's name and password before it runs,
+each time. Wrong attempts are limited to 5 per 15 minutes per operating-system user, and each run
+and failed attempt is recorded under *Account audit trail* (target `system`, with the OS user) once
+the app database exists.
+
+- **First use:** when no super user is configured, the first command asks you to define one (name,
+  then a password of 12 to 128 characters with upper case, lower case, a digit and a symbol) and
+  saves it to `.env.local`. On a server that uses `composer dump-env prod`, run that again
+  afterwards so the web pages see the new super user too.
+- **Not asked:** commands that run unattended: `cache:clear`, `assets:install` and
+  `importmap:install` (run by `composer install`), `messenger:consume` (the background worker), and
+  `list`, `help` and shell completion.
+- **Scripts and scheduled tasks:** other commands need a terminal. Run from a script, a pipe or with
+  `--no-interaction`, they stop with an error instead of waiting for a password.
+
 ---
 
 ## Upgrading
@@ -372,6 +398,8 @@ database.
 | Worker won't start or stops | `var/log/worker-error.log`, `var/log/worker.log`, and the log tail on the *Background worker* page. |
 | "Invalid username or password" for a known user | The reason (wrong password, locked, disabled, dormant) is recorded under *Account audit trail*. Unlock with an administrator or `app:user:account unlock`. |
 | All administrators locked out | `php bin/console app:user:account unlock <admin>` or `reset-password <admin>` on the server. |
+| A command stops with *needs Coreware authentication* | It was run without a terminal (script, pipe, `--no-interaction`). Run it in an interactive shell. |
+| Super user password lost | Remove the `APP_SUPERUSER_*` lines from `.env.local`; the next console command defines a new super user. |
 | Sign-in page says *Migration control is locked* | The super user locked the app (reason under *Account audit trail*). Unlock with the super user, or `app:system:unlock` on the server. *Failed its integrity check* means the lock file was edited or `APP_SECRET` changed. |
 | Uploads rejected as too large | PHP's `upload_max_filesize` / `post_max_size` (section 1) and `app.batch.upload_max_size`. |
 | Page shows the loading dinosaur forever or looks unstyled | Browser console. The pages need `cdn.tailwindcss.com` and Google Fonts to be reachable. |

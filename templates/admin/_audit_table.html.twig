@@ -5,7 +5,7 @@
         {% for entry in entries %}
             <tr>
                 <td>{{ entry.createdAt|date('M j, Y H:i:s') }}</td>
-                <td><span class="tag {{ entry.action in ['login_failed', 'login_throttled', 'locked', 'disabled', 'change_rejected', 'system_locked', 'superuser_failed', 'superuser_throttled'] ? 'danger' : (entry.action in ['session_expired', 'change_requested', 'password_reset', 'system_lock_scheduled'] ? 'warning' : 'neutral') }}">{{ entry.action|replace({'_': ' '})|capitalize }}</span></td>
+                <td><span class="tag {{ entry.action in ['login_failed', 'login_throttled', 'locked', 'disabled', 'change_rejected', 'system_locked', 'superuser_failed', 'superuser_throttled'] ? 'danger' : (entry.action in ['session_expired', 'change_requested', 'password_reset', 'system_lock_scheduled', 'superuser_defined'] ? 'warning' : 'neutral') }}">{{ entry.action|replace({'_': ' '})|capitalize }}</span></td>
                 <td>{{ entry.target ?? '—' }}</td>
                 <td>{{ entry.actor }}</td>
                 <td>{{ entry.details }}</td>

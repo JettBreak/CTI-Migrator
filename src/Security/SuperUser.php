@@ -54,14 +54,21 @@ final class SuperUser
             return self::THROTTLED;
         }
 
-        // Always hash, even for a wrong username, so the response time does not tell which part was wrong.
-        $passwordOk = $this->isConfigured() && (new NativePasswordHasher())->verify($this->passwordHash, $password);
-        if (!$this->isConfigured() || !hash_equals($this->username, $username) || !$passwordOk) {
+        if (!$this->verify($username, $password)) {
             $this->audit->record($username, UserAuditEntry::SUPERUSER_FAILED, 'system', \sprintf('Wrong super user credentials (%s).', $purpose), flush: true);
 
             return self::INVALID;
         }
 
         return self::OK;
+    }
+
+    /** Only compares the credentials: no attempt limit and no audit entry (callers do those). */
+    public function verify(string $username, #[\SensitiveParameter] string $password): bool
+    {
+        // Always hash, even for a wrong username, so the response time does not tell which part was wrong.
+        $passwordOk = $this->isConfigured() && (new NativePasswordHasher())->verify($this->passwordHash, $password);
+
+        return $this->isConfigured() && hash_equals($this->username, trim($username)) && $passwordOk;
     }
 }

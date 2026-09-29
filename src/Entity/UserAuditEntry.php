@@ -42,6 +42,8 @@ class UserAuditEntry implements RecordsTimezone
     public const SYSTEM_UNLOCKED = 'system_unlocked';
     public const SUPERUSER_FAILED = 'superuser_failed';
     public const SUPERUSER_THROTTLED = 'superuser_throttled';
+    public const SUPERUSER_DEFINED = 'superuser_defined';
+    public const CONSOLE_AUTHENTICATED = 'console_authenticated';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
