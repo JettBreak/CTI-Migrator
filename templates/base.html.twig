@@ -106,7 +106,11 @@
             {% set me = app.user %}
             {# The sign-in before this one, so the user can spot one that was not theirs. #}
             {% set previous = me.previousLoginAt ? 'Previous sign-in ' ~ me.previousLoginAt|date('M j, Y H:i') ~ (me.previousLoginIp ? ' from ' ~ me.previousLoginIp : '') : 'First sign-in' %}
-            <div class="profile" title="{{ previous }}"><div class="avatar">{{ me.displayName|split(' ')|map(p => p|first)|join|slice(0, 2)|upper }}</div><div><b>{{ me.displayName }}</b><small>{{ me.username }} · {{ me.role.label }} · <a href="{{ logout_path() }}" data-turbo="false" data-controller="rocket-swipe" data-action="rocket-swipe#depart" data-rocket-swipe-to-param="sign-in" data-rocket-swipe-loader-param="true">Sign out</a></small><small class="profile-last">{{ previous }}</small></div></div>
+            <div class="profile" title="{{ previous }}"><div class="avatar">{{ me.displayName|split(' ')|map(p => p|first)|join|slice(0, 2)|upper }}</div><div><b>{{ me.displayName }}</b><small>{{ me.username }} · {{ me.role.label }}</small><small class="profile-last">{{ previous }}</small></div></div>
+            <a class="signout-button" href="{{ logout_path() }}" data-turbo="false" data-controller="rocket-swipe" data-action="rocket-swipe#depart" data-rocket-swipe-to-param="sign-in" data-rocket-swipe-loader-param="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                Sign out
+            </a>
         {% endif %}
         </div>
     </header>
