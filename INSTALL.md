@@ -166,7 +166,26 @@ Point the document root at **`public/`** and send every request that isn't a fil
 `public/index.php`. Follow Symfony's guide for your server:
 <https://symfony.com/doc/current/setup/web_server_configuration.html>.
 
-- **HTTPS:** serve the site over HTTPS only, and redirect HTTP to HTTPS.
+- **HTTPS:** serve the site over HTTPS only, and redirect HTTP to HTTPS. When the site runs on its
+  own HTTPS port (e.g. `https://10.22.70.55:7443`), a browser that sends plain `http://` to that
+  port gets Apache's *"You're speaking plain HTTP to an SSL-enabled server port"* page. Browsers
+  ignore the app's HSTS header for IP addresses, so redirect those requests in the port's
+  `<VirtualHost>`, using the address people type:
+
+  ```apache
+  <VirtualHost *:7443>
+      SSLEngine on
+      # ...
+      # Plain HTTP sent to this HTTPS port: send the browser to the site over HTTPS.
+      ErrorDocument 400 https://10.22.70.55:7443/
+  </VirtualHost>
+  ```
+
+  The browser lands on the start page, which leads to sign-in. Keep the address fixed: Apache
+  refuses these requests before it has read their headers, so a redirect built from
+  `%{HTTP_HOST}` comes out without a host and browsers reject it as `ERR_INVALID_REDIRECT`. This
+  only replaces 400 errors produced by Apache itself; the app's own responses are unchanged.
+  `Listen` lines stay outside `<VirtualHost>`.
 - **Security headers:** the app sends CSP, `X-Frame-Options`, HSTS and no-store caching itself. Don't
   override them in the web server.
 - **Behind a reverse proxy or load balancer:** tell Symfony to trust it, so client IPs in the audit
