@@ -290,7 +290,7 @@ final class BatchWorkflowTest extends AppTestCase
         self::assertSame(2, $batch->invalidRowCount());
 
         // The uploader proceeds with the valid rows; the confirmation says the rest are skipped.
-        self::assertSelectorTextContains('button', 'Proceed with valid rows only');
+        self::assertSelectorTextContains('form[action$="/submit-valid"] button', 'Proceed with valid rows only');
         self::assertStringContainsString('need correction are skipped', $this->client->getCrawler()->filter('form[action$="/submit-valid"]')->attr('data-confirm-message-value'));
         $this->post($batch, 'submit-valid');
         $batch = $this->reload($batch);
