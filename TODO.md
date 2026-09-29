@@ -1,6 +1,20 @@
 # Pending tasks
 
-None.
+## Fix the failing batch workflow test
+
+`BatchWorkflowTest::testTheValidRowsOfABatchThatNeedsCorrectionCanProceedWithoutTheRest`
+(`tests/Controller/BatchWorkflowTest.php`, the assertion on the renames, around line 307) fails:
+it expects `001-005688102` to be renamed before `001-009713450`, but they are renamed the other way
+round. It already failed before the recent UI work, so it is not caused by it.
+
+Within a chunk, `BatchWorkflow::applyPending()` takes accounts in account-number order
+(`MigrationRowRepository::nextPendingAccounts()`), but renames them in file order: `pendingRowsFor()`
+returns rows by line number and `MappingValidator::validate()` makes one plan per account in that
+order. In the tests `app.batch.apply_chunk` is 2, so both accounts fall in one chunk.
+
+Find out which order is intended (the history of the test, `BatchWorkflow`, `MigrationRowRepository`
+and `MappingValidator`), then fix either the test's expectation or the code, and run
+`php bin/phpunit`.
 
 # Measured and set aside
 
