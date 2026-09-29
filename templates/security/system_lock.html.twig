@@ -22,7 +22,9 @@
             {% endif %}
 
             {% if not configured %}
-                <p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">No super user is configured on this server (APP_SUPERUSER_USERNAME and APP_SUPERUSER_PASSWORD_HASH), so the app cannot be locked from here.</p>
+                {# No super user is configured (APP_SUPERUSER_*): say only that the feature is unavailable. #}
+                <p class="text-sm rounded-md px-3 py-2" role="status" style="background:#12305e;color:#cfe0ff">System lockout isn't available right now. Contact your system administrator.</p>
+                <a href="{{ path('app_login') }}" class="button h-12 w-full" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770">Back to sign-in</a>
             {% else %}
                 {{ form_start(form, {attr: {class: 'space-y-4', autocomplete: 'off', novalidate: 'novalidate', 'data-turbo': 'false'}}) }}
                     {% for error in form.vars.errors %}<p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error.message }}</p>{% endfor %}
