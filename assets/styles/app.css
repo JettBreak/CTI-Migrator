@@ -202,3 +202,5 @@ main .user-rail h1{font-size:22px;letter-spacing:-.5px;margin:14px 0 4px;line-he
 .lock-choice:hover{color:#dbe7ff;background:rgba(92,155,255,.08)}
 .lock-choice:has(input:checked){color:#fff;background:var(--blue);box-shadow:0 4px 12px #3068db40}
 .lock-choice:has(input:focus-visible){outline:2px solid #5c9bff;outline-offset:2px}
+label.lock-days{display:none}
+form:has(input[value="lock_after_days"]:checked) .lock-days{display:block}

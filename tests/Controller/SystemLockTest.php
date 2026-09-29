@@ -113,6 +113,20 @@ final class SystemLockTest extends AppTestCase
         self::assertContains(UserAuditEntry::SUPERUSER_THROTTLED, $actions);
     }
 
+    public function testLockNowIgnoresALeftoverNumberOfDays(): void
+    {
+        $this->lockWith(['action' => 'lock_now', 'days' => 99999, 'reason' => 'Maintenance']);
+        self::assertResponseRedirects('/login');
+        self::assertTrue(static::getContainer()->get(SystemLock::class)->status()->isLocked());
+    }
+
+    public function testATimedLockNeedsDaysInRange(): void
+    {
+        $this->lockWith(['action' => 'lock_after_days', 'days' => 0, 'reason' => 'Trial']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('main', 'Choose between 1 and 3650 days.');
+    }
+
     public function testATimedLockNeedsANumberOfDays(): void
     {
         $this->lockWith(['action' => 'lock_after_days', 'reason' => 'Trial']);

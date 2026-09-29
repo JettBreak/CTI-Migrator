@@ -54,7 +54,8 @@ final class SystemLockType extends AbstractType
                     'label' => 'Days of use left',
                     'required' => false,
                     'attr' => ['min' => 1, 'max' => self::MAX_DAYS],
-                    'constraints' => [new Assert\Range(min: 1, max: self::MAX_DAYS, notInRangeMessage: 'Choose between {{ min }} and {{ max }} days.')],
+                    // Checked by SystemLockController, and only for "lock after days": the field is
+                    // hidden for the other choices and may still hold an old value.
                 ]);
         }
 

@@ -39,7 +39,8 @@
                             {% endfor %}
                         </div>
                     </fieldset>
-                    {{ include('security/_super_user_fields.html.twig', {fields: ['days']}) }}
+                    {# Shown only while "Lock after days" is selected (see .lock-days in app.css). #}
+                    {{ include('security/_super_user_fields.html.twig', {fields: ['days'], field_class: 'lock-days'}) }}
                     {{ include('security/_super_user_fields.html.twig', {fields: ['username', 'password', 'reason']}) }}
 
                     <div class="flex flex-col sm:flex-row gap-3 pt-2">

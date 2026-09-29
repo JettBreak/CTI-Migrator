@@ -39,8 +39,11 @@ final class SystemLockController extends AbstractController
         $form = $this->createForm(SystemLockType::class, null, ['purpose' => 'lock', 'scheduled' => $status->isScheduled()]);
         $form->handleRequest($request);
         $action = $form->has('action') ? $form->get('action')->getData() : null;
-        if ($form->isSubmitted() && SystemLockType::LOCK_AFTER_DAYS === $action && null === $form->get('days')->getData()) {
-            $form->get('days')->addError(new FormError('Enter how many days the app can still be used.'));
+        $days = $form->get('days')->getData();
+        if ($form->isSubmitted() && SystemLockType::LOCK_AFTER_DAYS === $action && (null === $days || $days < 1 || $days > SystemLockType::MAX_DAYS)) {
+            $form->get('days')->addError(new FormError(null === $days
+                ? 'Enter how many days the app can still be used.'
+                : \sprintf('Choose between 1 and %d days.', SystemLockType::MAX_DAYS)));
         }
 
         if ($form->isSubmitted() && $form->isValid() && $this->credentialsAccepted($form, 'lock')) {
@@ -51,7 +54,6 @@ final class SystemLockController extends AbstractController
                 $this->audit->record($actor, UserAuditEntry::SYSTEM_LOCK_CANCELLED, 'system', $reason, flush: true);
                 $this->addFlash('system_lock', 'The timed lock was cancelled.');
             } elseif (SystemLockType::LOCK_AFTER_DAYS === $action) {
-                $days = $form->get('days')->getData();
                 $locksAt = $this->lock->lockAfterDays($days, $actor, $reason);
                 $this->audit->record($actor, UserAuditEntry::SYSTEM_LOCK_SCHEDULED, 'system', \sprintf('Locks on %s (%d days). %s', $locksAt->format('M j, Y H:i'), $days, $reason), flush: true);
                 $this->addFlash('system_lock', \sprintf('The app can be used until %s, then it locks.', $locksAt->format('M j, Y H:i')));
