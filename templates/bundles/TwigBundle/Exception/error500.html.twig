@@ -1,0 +1,37 @@
+{#
+ # Shown for 500 Internal Server Error when debug is off (in dev, preview it at /_error/500).
+ # Kept free of anything that could fail again (no database, no user): only the request and the time,
+ # which let support find the error in the log.
+ #}
+{% extends '_signed_out_layout.html.twig' %}
+
+{% block title %}Something went wrong{% endblock %}
+
+{% block body %}
+<main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
+    <div class="w-full max-w-2xl lg:pl-40">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1 mb-5" style="background:rgba(255,107,127,.12);color:#ff9aa8;border:1px solid rgba(255,107,127,.3)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            Error 500 · Server error
+        </span>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Something went<br>wrong on our side</h1>
+        <div class="w-full max-w-sm space-y-4">
+            <p class="text-sm leading-6" style="color:#87a4d4">
+                An unexpected error stopped this request. Try again in a moment.
+                If it keeps happening, contact support and quote the reference below.
+            </p>
+            {% if app.request %}
+                <p class="text-xs rounded-md px-3 py-2 font-mono break-all" style="background:#0b1a36cc;color:#8ea7cf;border:1px solid #24436f">{{ 'now'|date('Y-m-d H:i:s T') }} · {{ app.request.method }} {{ app.request.pathInfo }}</p>
+            {% endif %}
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                {% if app.request and app.request.method == 'GET' %}
+                    <a href="{{ app.request.requestUri }}" class="button primary h-12 flex-1" style="margin:0" data-turbo="false">Try again</a>
+                    <a href="{{ path('app_home') }}" class="button h-12 flex-1" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770" data-turbo="false">Go to my start page</a>
+                {% else %}
+                    <a href="{{ path('app_home') }}" class="button primary h-12 flex-1" style="margin:0" data-turbo="false">Go to my start page</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}

@@ -49,6 +49,24 @@ final class ErrorPageTest extends AppTestCase
         self::assertSame('/account/start', $page->selectLink('Go to my start page')->attr('href'));
     }
 
+    public function testServerErrorPageOffersARetryWithAReference(): void
+    {
+        $page = $this->renderError(Request::create('/cards?page=2'), new HttpException(500));
+
+        self::assertStringContainsString('wrong on our side', $page->filter('h1')->text());
+        self::assertStringContainsString('GET /cards', $page->filter('main')->text());
+        self::assertSame('/cards?page=2', $page->selectLink('Try again')->attr('href'));
+        self::assertSame('/account/start', $page->selectLink('Go to my start page')->attr('href'));
+    }
+
+    public function testServerErrorPageAfterAFormPostDoesNotOfferARetry(): void
+    {
+        $page = $this->renderError(Request::create('/migration/upload', 'POST'), new HttpException(500));
+
+        self::assertCount(0, $page->selectLink('Try again'));
+        self::assertSame('/account/start', $page->selectLink('Go to my start page')->attr('href'));
+    }
+
     private function renderError(Request $request, HttpException $error = new AccessDeniedHttpException()): Crawler
     {
         $container = static::getContainer();
