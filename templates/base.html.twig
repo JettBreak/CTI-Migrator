@@ -39,7 +39,7 @@
     <meta name="turbo-refresh-scroll" content="preserve">
 </head>
 <body class="antialiased {% block page_class %}{% endblock %}">
-<div class="page-loader">{% include '_dino_loading.html.twig' with {active: true} %}</div>
+<div class="page-loader">{% include '_loading.html.twig' with {active: true} %}</div>
 <aside class="sidebar shadow-2xl shadow-slate-900/20">
     {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
     <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
@@ -61,6 +61,7 @@
         <p>ADMINISTRATION</p>
         <a href="{{ path('app_admin_users') }}" class="{{ route matches '/^app_admin_(users?|user_new)$/' ? 'active' }}"><span>☺</span> Users</a>
         <a href="{{ path('app_admin_audit') }}" class="{{ route == 'app_admin_audit' ? 'active' }}"><span>☰</span> Account audit trail</a>
+        <a href="{{ path('app_admin_settings') }}" class="{{ route == 'app_admin_settings' ? 'active' }}"><span>⚙</span> Settings</a>
         {% endif %}
         {% if app.user %}
         <p>MY ACCOUNT</p>

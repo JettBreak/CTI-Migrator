@@ -33,6 +33,8 @@ parameters:
     # The system lock set by the super user (see App\Security\SystemLock). Keep var/ across deploys:
     # the lock lives in this file, not in the database.
     app.system_lock.file: '%kernel.project_dir%/var/system-lock.%kernel.environment%.json'
+    # App-wide settings chosen in Administration > Settings (see App\Service\AppSettings); also kept in var/.
+    app.settings.file: '%kernel.project_dir%/var/settings.%kernel.environment%.json'
 
 services:
     # default configuration for services in *this* file

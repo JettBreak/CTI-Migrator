@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
 /*
- * Shows the full-page running-dinosaur overlay (.page-loader) while a page loads.
+ * Shows the full-page loading overlay (.page-loader) while a page loads.
  *
  * Sits on <html>, which Turbo never replaces, and toggles its `page-loading` class. The class is
  * rendered by the server so the overlay shows from the first paint; it is removed once the window

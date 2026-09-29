@@ -546,4 +546,4 @@ database.
 | Super user password lost | Remove the `APP_SUPERUSER_*` lines from `.env.local`; the next console command defines a new super user. |
 | Sign-in page says *Data migration is locked* | The super user locked the app (reason under *Account audit trail*). Unlock with the super user, or `app:system:unlock` on the server. *Failed its integrity check* means the lock file was edited or `APP_SECRET` changed. |
 | Uploads rejected as too large | PHP's `upload_max_filesize` / `post_max_size` (section 1) and `app.batch.upload_max_size`. |
-| Page shows the loading dinosaur forever or looks unstyled | Browser console. The pages need `cdn.tailwindcss.com` and Google Fonts to be reachable. |
+| Page shows the loading animation forever or looks unstyled | Browser console. The pages need `cdn.tailwindcss.com` and Google Fonts to be reachable. |

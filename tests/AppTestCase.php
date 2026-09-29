@@ -39,6 +39,8 @@ abstract class AppTestCase extends WebTestCase
         static::getContainer()->get('cache.rate_limiter')->clear();
         // The system lock is a file, not a database row.
         @unlink(static::getContainer()->getParameter('app.system_lock.file'));
+        // Nor are the app-wide settings: every test starts from the defaults.
+        @unlink(static::getContainer()->getParameter('app.settings.file'));
 
         $em = $this->em();
         $tool = new SchemaTool($em);

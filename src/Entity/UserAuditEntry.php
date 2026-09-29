@@ -44,6 +44,8 @@ class UserAuditEntry implements RecordsTimezone
     public const SUPERUSER_THROTTLED = 'superuser_throttled';
     public const SUPERUSER_DEFINED = 'superuser_defined';
     public const CONSOLE_AUTHENTICATED = 'console_authenticated';
+    // An app-wide setting (target "settings"), by a user administrator; see App\Service\AppSettings.
+    public const SETTING_CHANGED = 'setting_changed';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

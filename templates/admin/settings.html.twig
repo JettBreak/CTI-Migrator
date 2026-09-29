@@ -1,0 +1,39 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Settings · Coreware{% endblock %}
+{% block crumb %}Settings{% endblock %}
+
+{% block body %}
+<section class="page-head compact">
+    <div>
+        <span class="eyebrow">ADMINISTRATION</span>
+        <h1>Settings</h1>
+        <p>App-wide settings: they apply to everyone, on every page, including the sign-in page. Each change is recorded in the account audit trail.</p>
+    </div>
+</section>
+
+<section class="panel pad">
+    {{ form_start(form, {attr: {autocomplete: 'off', class: 'settings-form'}}) }}
+        <span class="eyebrow">LOADING ANIMATION</span>
+        <h2>Loading animation</h2>
+        <p class="muted" style="margin:6px 0 0">Shown while pages, tables and exports load.</p>
+        {{ form_errors(form.loadingAnimation) }}
+        <div class="loader-options">
+            {% for choice in form.loadingAnimation %}
+                {% set animation = animations|filter(a => a.value == choice.vars.value)|first %}
+                <label class="loader-option">
+                    <span class="loader-option-head">
+                        {{ form_widget(choice) }}
+                        <span><b>{{ animation.label }}</b><small class="muted">{{ animation.description }}</small></span>
+                        {% if animation == current %}<span class="tag success current">In use</span>{% endif %}
+                    </span>
+                    {{ include('_loading.html.twig', {active: true, animation: animation, label: 'Loading…'}) }}
+                </label>
+            {% endfor %}
+        </div>
+        <div class="review-actions">
+            <button type="submit" class="button primary">Save</button>
+        </div>
+    {{ form_end(form) }}
+</section>
+{% endblock %}

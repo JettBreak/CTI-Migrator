@@ -70,7 +70,7 @@
     @media (max-width:480px){.cred-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 {% block stylesheets %}{% endblock %}
-<div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
+<div class="page-loader solid">{% include '_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 <canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" {% block globe_attributes %}{% endblock %} aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
 <header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
     <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="brand-logo shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">

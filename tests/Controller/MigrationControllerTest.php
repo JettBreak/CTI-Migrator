@@ -71,8 +71,8 @@ final class MigrationControllerTest extends AppTestCase
             self::assertSelectorExists('.directory-panel[data-controller="loading"][data-action="submit->loading#start click->loading#follow"]', $page);
             self::assertSelectorExists('.directory-panel form.filter[data-controller="autosubmit"] select[data-action="change->autosubmit#submit"]', $page);
             self::assertSelectorExists('.directory-panel .pagination', $page);
-            self::assertSelectorExists('.directory-panel > .dino-loading[role="status"] svg.dino', $page);
-            self::assertSelectorTextContains('.directory-panel > .dino-loading .dino-label', '/cards' === $page ? 'Loading cards' : 'Loading accounts', $page);
+            self::assertSelectorExists('.directory-panel > .loading-indicator[role="status"] svg.rocket', $page);
+            self::assertSelectorTextContains('.directory-panel > .loading-indicator .loading-label', '/cards' === $page ? 'Loading cards' : 'Loading accounts', $page);
         }
     }
 

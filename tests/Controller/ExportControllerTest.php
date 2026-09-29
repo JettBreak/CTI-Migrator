@@ -95,9 +95,9 @@ final class ExportControllerTest extends AppTestCase
         $em->flush();
 
         $this->client->request('GET', '/exports');
-        self::assertSelectorExists('tbody .download-pending[aria-disabled="true"] .dino-loading.compact.is-active[role="status"]');
+        self::assertSelectorExists('tbody .download-pending[aria-disabled="true"] .loading-indicator.compact.is-active[role="status"]');
         // No visible label, but screen readers still hear what is happening.
-        self::assertSelectorTextContains('tbody .download-pending .dino-label.visually-hidden', 'Preparing export');
+        self::assertSelectorTextContains('tbody .download-pending .loading-label.visually-hidden', 'Preparing export');
         self::assertSelectorNotExists(sprintf('a[href="/exports/%d/download"]', $job->getId()));
     }
 

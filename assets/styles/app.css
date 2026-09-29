@@ -79,17 +79,34 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .directory-panel{position:relative}
 .directory-panel .table-wrap,.directory-panel .pagination{transition:opacity .15s}
 .directory-panel.is-loading .table-wrap,.directory-panel.is-loading .pagination{opacity:.25;pointer-events:none}
-/* Running dinosaur (templates/_dino_loading.html.twig): hidden until an ancestor is .is-loading */
-.dino-loading{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-40%);z-index:3;flex-direction:column;align-items:center;gap:12px;padding:22px 28px 18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px #10264e1f;color:var(--text-2)}
-.is-loading>.dino-loading,.dino-loading.is-active{display:flex}
-.dino-stage{position:relative;width:240px;height:72px;overflow:hidden}
+/* Loading indicator (templates/_loading.html.twig): hidden until an ancestor is .is-loading. The pixel rocket first, the dinosaur after it. */
+.loading-indicator{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-40%);z-index:3;flex-direction:column;align-items:center;gap:12px;padding:22px 28px 18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px #10264e1f;color:var(--text-2)}
+.is-loading>.loading-indicator,.loading-indicator.is-active{display:flex}
+.loading-stage{position:relative;width:240px;height:72px;overflow:hidden}
+/* Stars streak past: rows of dashes, each moving left by whole multiples of its spacing (a seamless loop). */
+.rocket-streaks{position:absolute;inset:0;opacity:.45;background:linear-gradient(90deg,currentColor 0 8px,transparent 8px) 0 10px/53px 2px repeat-x,linear-gradient(90deg,currentColor 0 4px,transparent 4px) 21px 26px/37px 2px repeat-x,linear-gradient(90deg,currentColor 0 12px,transparent 12px) 9px 48px/71px 2px repeat-x,linear-gradient(90deg,currentColor 0 5px,transparent 5px) 30px 62px/43px 2px repeat-x;animation:rocket-streak .5s linear infinite}
+@keyframes rocket-streak{to{background-position:-53px 10px,-16px 26px,-62px 48px,-13px 62px}}
+/* The asteroid crosses the stage (240px + its width) in 2.4s; the rocket (x 28–94) lifts over it while it passes. */
+.rocket-craft{position:absolute;left:28px;top:23px;width:66px;animation:rocket-dodge 2.4s ease-in-out infinite}
+.rocket{display:block;width:66px;height:27px;fill:currentColor;animation:rocket-bob .6s ease-in-out infinite alternate}
+.rocket-stripe,.rocket-flame{fill:#f39a2b}.rocket-core{fill:#ffe08a}.rocket-glint{fill:#fff;opacity:.85}.rocket-window{fill:var(--rocket-window,var(--link))}
+.rocket-flame-a{animation:rocket-flicker .16s steps(1) infinite}
+.rocket-flame-b{animation:rocket-flicker .16s steps(1) infinite reverse}
+.rocket-asteroid{position:absolute;left:100%;top:30px;width:18px;height:15px;fill:currentColor;opacity:.7;animation:rocket-asteroid 2.4s linear infinite}
+.rocket-crater{fill:#000;opacity:.25}
+.loading-label{font:700 12px Manrope,sans-serif;letter-spacing:.6px;color:var(--muted)}
+@keyframes rocket-flicker{0%{opacity:1}50%{opacity:0}}
+@keyframes rocket-bob{to{transform:translateY(2px)}}
+@keyframes rocket-dodge{0%,42%{transform:translateY(0)}55%,82%{transform:translateY(-19px) rotate(-6deg)}92%,100%{transform:translateY(0)}}
+@keyframes rocket-asteroid{from{transform:translateX(0) rotate(0)}to{transform:translateX(-270px) rotate(-180deg)}}
+@media(prefers-reduced-motion:reduce){.rocket-streaks,.rocket-craft,.rocket,.rocket-flame-a,.rocket-flame-b,.rocket-asteroid{animation:none}.rocket-flame-b{opacity:0}.rocket-asteroid{display:none}}
+/* Pixel dinosaur, the other loading animation (Administration > Settings) */
 .dino{position:absolute;left:26px;bottom:8px;width:48px;height:42px;fill:currentColor;animation:dino-jump 2.2s linear infinite}
 .dino-legs-a{animation:dino-step .26s steps(1) infinite}
 .dino-legs-b{animation:dino-step .26s steps(1) infinite reverse}
 .dino-cactus{position:absolute;left:100%;bottom:8px;width:14px;height:24px;fill:currentColor;animation:dino-cactus 2.2s linear infinite}
 .dino-ground{position:absolute;left:0;right:0;bottom:8px;height:1px;background:currentColor}
 .dino-ground:after{content:'';position:absolute;left:0;right:0;top:4px;height:2px;background:repeating-linear-gradient(90deg,currentColor 0 3px,transparent 3px 17px,currentColor 17px 19px,transparent 19px 41px);opacity:.55;animation:dino-ground .55s linear infinite}
-.dino-label{font:700 12px Manrope,sans-serif;letter-spacing:.6px;color:var(--muted)}
 @keyframes dino-step{0%{opacity:1}50%{opacity:0}}
 @keyframes dino-ground{to{background-position:-41px 0}}
 /* The cactus crosses the stage (240px + its width) in 2.2s; the dino (x 26–74) jumps while it passes. */
@@ -97,17 +114,17 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 @keyframes dino-jump{0%,60%{transform:translateY(0)}66%,80%{transform:translateY(-32px)}84%{transform:translateY(-26px)}92%,100%{transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.dino,.dino-legs-a,.dino-legs-b,.dino-cactus,.dino-ground:after{animation:none}.dino-legs-b{opacity:0}.dino-cactus{display:none}}
 /* Compact variant, always running: e.g. an export being prepared in the Exports table */
-.dino-loading.compact{position:static;transform:none;flex-direction:row;gap:8px;padding:0;background:none;border:0;box-shadow:none;z-index:auto}
-.dino-loading.compact .dino-stage{zoom:.5}
-.dino-loading.compact .dino-label{font-size:11px;letter-spacing:.3px;white-space:nowrap}
+.loading-indicator.compact{position:static;transform:none;flex-direction:row;gap:8px;padding:0;background:none;border:0;box-shadow:none;z-index:auto}
+.loading-indicator.compact .loading-stage{zoom:.5}
+.loading-indicator.compact .loading-label{font-size:11px;letter-spacing:.3px;white-space:nowrap}
 .download-pending{background:var(--surface);border:0;box-shadow:none;color:var(--text-2);cursor:progress;padding:5px 8px;gap:0}
 .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* Export buttons are disabled while the worker generates another export (templates/export/_button.html.twig) */
 .inline-form button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 /* Full-page loading overlay (assets/controllers/page_loader_controller.js); the fail-safe hides it if that never runs */
 .page-loader{display:none;position:fixed;inset:0;z-index:1000;background:#050b1cb8}
-.page-loader .dino-loading{background:#0f2347f5;border-color:#24436f;box-shadow:0 18px 50px #000a,inset 0 1px 0 #ffffff14;color:#dbe7ff}
-.page-loader .dino-label{color:#9fb3d6}
+.page-loader .loading-indicator{--rocket-window:#5c9bff;background:#0f2347f5;border-color:#24436f;box-shadow:0 18px 50px #000a,inset 0 1px 0 #ffffff14;color:#dbe7ff}
+.page-loader .loading-label{color:#9fb3d6}
 .page-loading .page-loader{display:block;animation:page-loader-failsafe 0s 8s forwards}
 @keyframes page-loader-failsafe{to{visibility:hidden}}
 /* Informational notice on a batch page, e.g. a batch that skips its rows to correct */
@@ -312,7 +329,7 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 [data-theme=dark] body:not(.login-page) .panel .panel,[data-theme=dark] body:not(.login-page) .action-tile{box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 [data-theme=dark] body:not(.login-page) .button.primary{box-shadow:0 6px 18px rgba(58,114,224,.35)}
 [data-theme=dark] body:not(.login-page) .directory-panel thead th{background:rgba(12,20,38,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-[data-theme=dark] body:not(.login-page) .dino-loading:not(.compact){background:rgba(14,24,46,.88);border-color:var(--glass-edge);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+[data-theme=dark] body:not(.login-page) .loading-indicator:not(.compact){background:rgba(14,24,46,.88);border-color:var(--glass-edge);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 [data-theme=dark] body:not(.login-page) .confirm-modal{background:rgba(18,30,56,.78)}
 [data-theme=dark] body:not(.login-page) option{background:#101a2e;color:var(--ink)}
 /* Theme switch in the header: System, Light, Dark (assets/controllers/theme_controller.js) */
@@ -328,3 +345,13 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 [data-theme=dark] body:not(.login-page) .page-stars{display:block}
 [data-theme=dark] body:not(.login-page) main{position:relative;z-index:1}
 @media(max-width:1000px){.page-stars{left:210px;width:calc(100% - 210px)}}
+/* Administration > Settings: the loading animations to choose from, each with a live preview */
+.loader-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
+.loader-option{display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.loader-option:hover{border-color:var(--line-strong)}
+.loader-option:has(input:checked){border-color:var(--blue);box-shadow:0 0 0 3px #3068db1f}
+.loader-option:has(input:focus-visible){outline:2px solid var(--blue);outline-offset:2px}
+.loader-option-head{display:flex;align-items:flex-start;gap:10px}.loader-option-head input{margin-top:3px;accent-color:var(--blue)}
+.loader-option-head b{display:block}.loader-option-head small{display:block;margin-top:2px}
+.loader-option .loading-indicator{position:static;transform:none;box-shadow:none;background:var(--surface-2)}
+.loader-option .current{margin-left:auto}
