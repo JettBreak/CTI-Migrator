@@ -79,7 +79,29 @@ final class WorkerSupervisor
         return \in_array($this->status()['state'], [self::RUNNING, self::STARTING], true);
     }
 
-    /** @return bool false if it was already running or starting */
+    /**
+     * Worker processes of this app that are running but are not the one this page follows: started elsewhere, or
+     * started here but unable to write their heartbeat (e.g. the app cache directory is not writable), so they
+     * look stopped. Lists the process table: meant for the Background worker page, not every page.
+     *
+     * @param array<string, mixed>|null $status status(), if already at hand
+     *
+     * @return list<int>
+     */
+    public function untracked(?array $status = null): array
+    {
+        $status ??= $this->status();
+        $tracked = self::STOPPED === $status['state'] ? null : $status['pid'];
+
+        return array_values(array_filter($this->launcher->runningWorkers(), static fn (int $pid) => $pid !== $tracked));
+    }
+
+    /**
+     * @return bool false if it was already running or starting
+     *
+     * @throws WorkerAlreadyRunning when a worker this page does not follow is running: the app runs one at a time,
+     *                              and two could each take up the same export or batch
+     */
     public function start(string $by): bool
     {
         $lock = $this->lockFactory->createLock('worker-control', 60);
@@ -90,6 +112,9 @@ final class WorkerSupervisor
             $status = $this->status();
             if (self::STOPPED !== $status['state']) {
                 return false;
+            }
+            if ([] !== $running = $this->launcher->runningWorkers()) {
+                throw new WorkerAlreadyRunning($running);
             }
             $pid = $this->launcher->launch();
             $this->set(self::LAUNCH_KEY, ['pid' => $pid, 'at' => new \DateTimeImmutable(), 'by' => $by]);
@@ -110,12 +135,16 @@ final class WorkerSupervisor
         $this->logger->notice('Background worker stop requested by {by}', ['by' => $by]);
     }
 
-    /** Kills the process outright, e.g. when a graceful stop hangs. An export in progress is lost. */
+    /**
+     * Kills the process outright, e.g. when a graceful stop hangs, and any other worker of this app that is running
+     * (see untracked()). An export in progress is lost.
+     */
     public function forceStop(string $by): void
     {
         $status = $this->status();
-        if (null !== $status['pid']) {
-            $this->launcher->kill($status['pid']);
+        $pids = array_values(array_unique(array_filter([$status['pid'], ...$this->launcher->runningWorkers()])));
+        foreach ($pids as $pid) {
+            $this->launcher->kill($pid);
         }
         $heartbeat = $status['heartbeat'];
         if (null !== $heartbeat) {
@@ -124,7 +153,7 @@ final class WorkerSupervisor
             $this->set(WorkerHeartbeatListener::KEY, $heartbeat);
         }
         $this->set(self::STOP_KEY, ['at' => new \DateTimeImmutable(), 'by' => $by.' (forced)']);
-        $this->logger->warning('Background worker force-stopped by {by} (pid {pid})', ['by' => $by, 'pid' => $status['pid']]);
+        $this->logger->warning('Background worker force-stopped by {by} (pid {pids})', ['by' => $by, 'pids' => implode(', ', $pids) ?: 'none']);
     }
 
     /** @return array<string, list<string>> log file name => its last $lines non-empty lines, oldest first */

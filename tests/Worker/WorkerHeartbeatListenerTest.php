@@ -5,6 +5,7 @@ namespace App\Tests\Worker;
 use App\Message\GenerateCardExport;
 use App\Worker\WorkerHeartbeatListener;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
@@ -20,7 +21,7 @@ final class WorkerHeartbeatListenerTest extends TestCase
     public function testRecordsTheWorkerLifecycle(): void
     {
         $cache = new ArrayAdapter();
-        $listener = new WorkerHeartbeatListener($cache);
+        $listener = new WorkerHeartbeatListener($cache, new NullLogger(), 'var/share/test');
         $worker = new Worker([], new MessageBus());
         $envelope = new Envelope(new GenerateCardExport(7));
 
@@ -50,7 +51,7 @@ final class WorkerHeartbeatListenerTest extends TestCase
     public function testIgnoresMessagesHandledOutsideAWorker(): void
     {
         $cache = new ArrayAdapter();
-        (new WorkerHeartbeatListener($cache))->onHandled(new WorkerMessageHandledEvent(new Envelope(new GenerateCardExport(1)), 'sync'));
+        (new WorkerHeartbeatListener($cache, new NullLogger(), 'var/share/test'))->onHandled(new WorkerMessageHandledEvent(new Envelope(new GenerateCardExport(1)), 'sync'));
 
         self::assertFalse($cache->getItem(WorkerHeartbeatListener::KEY)->isHit());
     }

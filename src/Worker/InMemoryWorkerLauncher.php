@@ -31,4 +31,10 @@ final class InMemoryWorkerLauncher implements WorkerLauncher
     {
         $this->processes[$pid] = false;
     }
+
+    /** Launched ones, and any a test adds to $processes as started elsewhere. */
+    public function runningWorkers(): array
+    {
+        return array_keys(array_filter($this->processes));
+    }
 }

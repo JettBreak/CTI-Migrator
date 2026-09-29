@@ -96,4 +96,46 @@ final class ProcessWorkerLauncher implements WorkerLauncher
             : new Process(['kill', '-TERM', (string) $pid]);
         $process->run();
     }
+
+    /**
+     * Processes running this app's worker command (messenger:consume of the async and scheduler_default
+     * transports). A worker can be a chain of processes (on Windows: cmd.exe, a launcher shim, php.exe), so
+     * only the top of each chain counts: a process whose parent is not one of them. On Linux a process is
+     * this app's if it runs in this project directory; one whose directory cannot be read (another user's)
+     * is counted, as it may well be.
+     */
+    public function runningWorkers(): array
+    {
+        $processes = []; // pid => parent pid
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            $process = new Process(['powershell', '-NoProfile', '-NonInteractive', '-Command',
+                'Get-CimInstance Win32_Process -Filter "CommandLine LIKE \'%messenger:consume%\'" | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)" }']);
+            $process->run();
+            foreach (preg_split('/\R/', $process->getOutput()) as $line) {
+                if (preg_match('/^(\d+) (\d+) (.*)$/', trim($line), $m) && $this->isWorkerCommand($m[3]) && !str_contains($m[3], 'Get-CimInstance')) {
+                    $processes[(int) $m[1]] = (int) $m[2];
+                }
+            }
+        } else {
+            $process = new Process(['ps', '-eo', 'pid=,ppid=,args=']);
+            $process->run();
+            $project = realpath($this->projectDir);
+            foreach (preg_split('/\R/', $process->getOutput()) as $line) {
+                if (!preg_match('/^(\d+)\s+(\d+)\s+(.*)$/', trim($line), $m) || !$this->isWorkerCommand($m[3])) {
+                    continue;
+                }
+                $cwd = @readlink('/proc/'.$m[1].'/cwd');
+                if (false === $cwd || $cwd === $project) {
+                    $processes[(int) $m[1]] = (int) $m[2];
+                }
+            }
+        }
+
+        return array_values(array_keys(array_filter($processes, static fn (int $parent) => !isset($processes[$parent]))));
+    }
+
+    private function isWorkerCommand(string $commandLine): bool
+    {
+        return str_contains($commandLine, 'messenger:consume') && str_contains($commandLine, 'scheduler_default');
+    }
 }

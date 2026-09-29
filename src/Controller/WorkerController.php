@@ -28,8 +28,12 @@ final class WorkerController extends AbstractController
     #[Route('', name: 'app_worker', methods: ['GET'])]
     public function index(ExportJobRepository $jobs, QueueInspector $queue): Response
     {
+        $status = $this->supervisor->status();
+
         return $this->render('worker/index.html.twig', [
-            'worker' => $this->supervisor->status(),
+            'worker' => $status,
+            // Worker processes running that this page does not follow (e.g. they cannot write their heartbeat).
+            'untracked' => $this->supervisor->untracked($status),
             'queued' => $jobs->countInState(ExportState::Queued),
             // Queued exports a stopped worker took and never started: export id => when they are retried.
             'held' => $queue->heldExports(),

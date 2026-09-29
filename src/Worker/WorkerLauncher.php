@@ -14,4 +14,12 @@ interface WorkerLauncher
 
     /** Last resort when a graceful stop does not finish. */
     public function kill(int $pid): void;
+
+    /**
+     * PIDs of this app's worker processes that are running, however they were started (this page, a process
+     * manager, a terminal): one per worker, as launch() reports it, not every process in its chain.
+     *
+     * @return list<int>
+     */
+    public function runningWorkers(): array;
 }

@@ -3,6 +3,7 @@
 namespace App\Worker;
 
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
@@ -24,9 +25,12 @@ final class WorkerHeartbeatListener
     /** @var array<string, mixed>|null */
     private ?array $state = null;
     private int $lastWrite = 0;
+    private bool $saveFailed = false;
 
     public function __construct(
         #[Autowire(service: 'cache.app')] private readonly CacheItemPoolInterface $cache,
+        private readonly LoggerInterface $logger,
+        #[Autowire('%kernel.share_dir%')] private readonly string $shareDir,
     ) {
     }
 
@@ -104,7 +108,11 @@ final class WorkerHeartbeatListener
         }
         $this->state['beatAt'] = new \DateTimeImmutable();
         $this->lastWrite = time();
-        $this->cache->save($this->cache->getItem(self::KEY)->set($this->state));
+        if (!$this->cache->save($this->cache->getItem(self::KEY)->set($this->state)) && !$this->saveFailed) {
+            // Once per worker: the Background worker page cannot see it then, and would otherwise offer to start another.
+            $this->saveFailed = true;
+            $this->logger->error('The worker cannot save its heartbeat to the app cache, so the Background worker page cannot see it. Check that {dir} exists and belongs to the user this worker runs as, then restart the worker.', ['dir' => $this->shareDir]);
+        }
     }
 
     private static function name(object $message): string

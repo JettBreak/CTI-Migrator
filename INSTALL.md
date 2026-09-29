@@ -538,6 +538,7 @@ database.
 |---|---|
 | Any error page | `var/log/prod.log` (or `dev.log`, plus the web profiler at `/_profiler` in dev). |
 | Worker won't start or stops | `var/log/worker-error.log`, `var/log/worker.log`, and the log tail on the *Background worker* page. |
+| *Background worker* page says a worker process *does not report to this page*, or it won't start because *a worker is already running* | The worker cannot save its heartbeat to the app cache, usually because `var/share/<env>` was deleted or recreated by another user (for example a command run as root) while it ran; `worker-error.log` then repeats *Failed to save key "worker.heartbeat"* and the worker logs *cannot save its heartbeat* once. Make sure `var/share` and everything in it belong to the user the web server and the worker run as, **Force stop** on the page (it stops every worker of the app), then switch the worker on. Only one worker should run at a time: two can take up the same export or batch. |
 | "Invalid username or password" for a known user | The reason (wrong password, locked, disabled, dormant) is recorded under *Account audit trail*. Unlock with an administrator or `app:user:account unlock`. |
 | All administrators locked out | `php bin/console app:user:account unlock <admin>` or `reset-password <admin>` on the server. |
 | A batch page says *Rows permanently deleted* | Its rows were removed under the fixed 90-day data-retention rule (see *Data retention*). They cannot be restored from the app; upload the file again. |
