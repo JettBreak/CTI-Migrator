@@ -36,6 +36,20 @@ final class AccountPolicy
         return $user->getPasswordChangedAt() < $this->now()->modify('-'.$this->passwordMaxAge);
     }
 
+    /** Days the current password has been in use. */
+    public function passwordAgeDays(User $user): int
+    {
+        return $user->getPasswordChangedAt()->diff($this->now())->days;
+    }
+
+    /** The password max age in days (it is configured as a relative date, e.g. "90 days"). */
+    public function passwordMaxAgeDays(): int
+    {
+        $start = new \DateTimeImmutable('2000-01-01');
+
+        return $start->diff($start->modify('+'.$this->passwordMaxAge))->days;
+    }
+
     /** The account must choose a new password before it can do anything else. */
     public function needsPasswordChange(User $user): bool
     {

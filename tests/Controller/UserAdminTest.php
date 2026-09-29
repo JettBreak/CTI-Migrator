@@ -122,6 +122,22 @@ final class UserAdminTest extends AppTestCase
         self::assertNull($officer->getSessionToken());
     }
 
+    public function testTheAccountPageShowsPasswordAgeAndOneActionTilePerForm(): void
+    {
+        $this->createUser('officer');
+        $this->clock->sleep(80 * 86400);
+        $this->loginAs('admin1');
+        $crawler = $this->client->request('GET', '/admin/users/officer');
+
+        self::assertSelectorTextContains('.user-rail h1', $this->user('officer')->getDisplayName());
+        self::assertSelectorTextContains('.password-age', '80 of 90 days');
+        self::assertSelectorTextContains('.password-age', 'Expires in 10 days');
+        self::assertSelectorExists('.password-age.ageing');
+        // Tiles open the forms by position, so each tile needs exactly one form.
+        self::assertSame(['Change role', 'Reset password', 'Disable'], $crawler->filter('.action-tile b')->each(static fn ($b) => $b->text()));
+        self::assertCount(3, $crawler->filter('.account-actions form[data-tabs-target="panel"]'));
+    }
+
     public function testALockedAccountCanBeUnlockedAtOnce(): void
     {
         $officer = $this->createUser('officer');
