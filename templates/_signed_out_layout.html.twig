@@ -1,0 +1,44 @@
+{# Shell of the signed-out pages (sign-in, error pages): the space background with the globe, header and footer. #}
+<!DOCTYPE html>
+<html lang="en" class="page-loading" data-controller="page-loader" data-page-loader-wait-for-value="login-globe:ready">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %} · Coreware Migration</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/logo-32.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-256.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    {{ importmap('app') }}
+</head>
+<body class="login-page min-h-screen flex flex-col antialiased">
+<style>
+    .login-page{background:
+        radial-gradient(ellipse 45% 55% at 88% 18%,rgba(124,77,219,.45),transparent 70%),
+        radial-gradient(ellipse 40% 50% at 62% 88%,rgba(48,104,219,.45),transparent 70%),
+        radial-gradient(ellipse 30% 35% at 98% 85%,rgba(245,154,35,.18),transparent 70%),
+        radial-gradient(ellipse 35% 45% at 8% 20%,rgba(48,104,219,.28),transparent 70%),
+        radial-gradient(ellipse 30% 40% at 25% 95%,rgba(124,77,219,.25),transparent 70%),
+        radial-gradient(circle at 75% 50%,#0c1f45,#050b1c 80%) fixed}
+    /* Header and footer sit directly on the space scene, with light text */
+    .login-bar{position:relative;z-index:1;border:0;background:transparent}
+    header.login-bar{height:auto}
+</style>
+{% block stylesheets %}{% endblock %}
+<div class="page-loader solid">{% include '_dino_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
+<canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" aria-hidden="true" class="max-md:hidden fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
+<header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
+    <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="w-[38px] h-[38px] sm:w-[50px] sm:h-[50px] shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
+    <span class="text-lg sm:text-[28px] leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>
+    <span class="ml-auto inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1" style="background:var(--green-bg);color:var(--green);border:1px solid rgba(22,135,101,.2)"><span class="live-dot" style="margin:0"></span>Secure environment</span>
+</header>
+{% block body %}{% endblock %}
+<footer class="login-bar w-full px-6 sm:px-10 py-4 flex flex-col sm:flex-row gap-1 sm:items-center text-xs" style="color:#8ea7cf">
+    <span>© {{ 'now'|date('Y') }} Coreware Technologies Inc. All rights reserved.</span>
+    <span class="sm:ml-auto">Authorized personnel only · activity is logged · v1.0</span>
+</footer>
+</body>
+</html>

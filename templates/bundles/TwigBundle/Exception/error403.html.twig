@@ -1,0 +1,42 @@
+{#
+ # Shown for 403 Forbidden when debug is off (in dev, preview it at /_error/403).
+ # Signed-out visitors are sent to the sign-in page by the firewall, so this is normally seen by a
+ # signed-in user whose role does not reach the page, or after an expired sign-out link.
+ #}
+{% extends '_signed_out_layout.html.twig' %}
+
+{% block title %}Access denied{% endblock %}
+
+{% block body %}
+{% set me = app.user %}
+<main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
+    <div class="w-full max-w-2xl lg:pl-40">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1 mb-5" style="background:rgba(245,154,35,.12);color:#f5b560;border:1px solid rgba(245,154,35,.3)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            Error 403 · Forbidden
+        </span>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">You don't have<br>access to this page</h1>
+        <div class="w-full max-w-sm space-y-4">
+            <p class="text-sm leading-6" style="color:#87a4d4">
+                {% if me %}
+                    Your account <b style="color:#dbe7ff">{{ me.userIdentifier }}</b>{% if me.role is defined %} ({{ me.role.label }}){% endif %} is not permitted to open this page.
+                    If you need it for your work, ask your user administrator to review your access.
+                {% else %}
+                    This page is not available. Sign in with an account that is permitted to open it.
+                {% endif %}
+            </p>
+            {% if app.request %}
+                <p class="text-xs rounded-md px-3 py-2 font-mono break-all" style="background:#0b1a36cc;color:#8ea7cf;border:1px solid #24436f">{{ app.request.method }} {{ app.request.pathInfo }}</p>
+            {% endif %}
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                {% if me %}
+                    <a href="{{ path('app_home') }}" class="button primary h-12 flex-1" style="margin:0" data-turbo="false">Go to my start page</a>
+                    <a href="{{ logout_path() }}" class="button h-12 flex-1" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770" data-turbo="false">Sign out</a>
+                {% else %}
+                    <a href="{{ path('app_login') }}" class="button primary h-12 flex-1" style="margin:0" data-turbo="false">Sign in</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
