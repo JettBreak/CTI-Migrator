@@ -38,9 +38,9 @@ final class SystemLockType extends AbstractType
             ]);
 
         if ('lock' === $options['purpose']) {
-            $choices = ['Lock now' => self::LOCK_NOW, 'Allow use for a number of days, then lock' => self::LOCK_AFTER_DAYS];
+            $choices = ['Lock now' => self::LOCK_NOW, 'Lock after days' => self::LOCK_AFTER_DAYS];
             if ($options['scheduled']) {
-                $choices['Cancel the timed lock'] = self::CANCEL;
+                $choices['Cancel timed lock'] = self::CANCEL;
             }
             $builder
                 ->add('action', ChoiceType::class, [

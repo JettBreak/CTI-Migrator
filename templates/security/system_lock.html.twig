@@ -27,14 +27,17 @@
                 {{ form_start(form, {attr: {class: 'space-y-4', autocomplete: 'off', novalidate: 'novalidate', 'data-turbo': 'false'}}) }}
                     {% for error in form.vars.errors %}<p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error.message }}</p>{% endfor %}
 
-                    <fieldset class="space-y-2">
+                    <fieldset>
                         <legend class="text-sm font-semibold mb-2" style="color:#dbe7ff">{{ form.action.vars.label }}</legend>
-                        {% for choice in form.action %}
-                            <label class="lock-choice flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm cursor-pointer" style="border-color:#2d4770;background:#0b1a36cc;color:#dbe7ff">
-                                {{ form_widget(choice, {attr: {class: 'accent-[#5c9bff]'}}) }}
-                                <span>{{ choice.vars.label }}</span>
-                            </label>
-                        {% endfor %}
+                        {# One row of equal segments; the radios stay in the page for keyboards and screen readers. #}
+                        <div class="lock-choices" style="grid-template-columns:repeat({{ form.action|length }},minmax(0,1fr))">
+                            {% for choice in form.action %}
+                                <label class="lock-choice">
+                                    {{ form_widget(choice, {attr: {class: 'sr-only'}}) }}
+                                    <span>{{ choice.vars.label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
                     </fieldset>
                     {{ include('security/_super_user_fields.html.twig', {fields: ['days']}) }}
                     {{ include('security/_super_user_fields.html.twig', {fields: ['username', 'password', 'reason']}) }}
