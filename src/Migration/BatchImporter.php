@@ -10,10 +10,18 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Streams an uploaded mapping file into a batch a chunk at a time: validate the chunk against core,
  * then bulk-insert it with its results. Memory use stays flat whatever the file size.
+ *
+ * Chunks are committed in groups (CHUNKS_PER_COMMIT), not one by one. Every row updates indexes keyed on
+ * account numbers, which arrive in no particular order, so each commit writes out index pages from all
+ * over the table; committing each 1,000-row chunk on its own made every commit dearer than the last as
+ * the table grew, and validation slowed down badly past a couple of hundred thousand rows. A group of
+ * chunks writes each page once. The batch's progress, read by other requests, moves once per group.
  */
 final class BatchImporter
 {
     private const CHUNK = 1000;
+    /** Chunks per database transaction: 10,000 rows. */
+    private const CHUNKS_PER_COMMIT = 10;
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -36,20 +44,37 @@ final class BatchImporter
         $batch->startValidation();
         $this->em->flush();
 
-        $chunk = [];
-        foreach ($this->parser->rows($path) as $line) {
-            $chunk[] = new MigrationRow($batch, $line['line'], $line['card_ref'], $line['current_account'], $line['new_account']);
-            if (self::CHUNK === count($chunk)) {
-                $this->store($batch, $chunk);
-                $chunk = [];
+        $connection = $this->em->getConnection();
+        $connection->beginTransaction();
+        try {
+            $chunk = [];
+            $uncommitted = 0;
+            foreach ($this->parser->rows($path) as $line) {
+                $chunk[] = new MigrationRow($batch, $line['line'], $line['card_ref'], $line['current_account'], $line['new_account']);
+                if (self::CHUNK === count($chunk)) {
+                    $this->store($batch, $chunk);
+                    $chunk = [];
+                    if (self::CHUNKS_PER_COMMIT === ++$uncommitted) {
+                        $connection->commit();
+                        $connection->beginTransaction();
+                        $uncommitted = 0;
+                    }
+                }
             }
-        }
-        if ([] !== $chunk) {
-            $this->store($batch, $chunk);
-        }
+            if ([] !== $chunk) {
+                $this->store($batch, $chunk);
+            }
 
-        $batch->finishValidation($this->rows->stats($batch)['accounts']);
-        $this->em->flush();
+            $batch->finishValidation($this->rows->stats($batch)['accounts']);
+            $this->em->flush();
+            $connection->commit();
+        } catch (\Throwable $e) {
+            // An interrupted import starts again from the first row, so the rows of the open group can go.
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /** @param list<MigrationRow> $chunk rows in file order, following every row already stored */
@@ -63,11 +88,10 @@ final class BatchImporter
         );
         $this->validator->validate($chunk, firstForCurrent: $firstForCurrent, firstForNew: $firstForNew);
 
-        $this->em->getConnection()->transactional(function () use ($batch, $chunk): void {
-            $this->rows->insert($batch, $chunk);
-            $batch->recordValidated(count($chunk), count(array_filter($chunk, static fn (MigrationRow $r) => !$r->isValid())));
-            $this->em->flush();
-        });
+        // Inside import()'s transaction for this group of chunks.
+        $this->rows->insert($batch, $chunk);
+        $batch->recordValidated(count($chunk), count(array_filter($chunk, static fn (MigrationRow $r) => !$r->isValid())));
+        $this->em->flush();
         $this->memory->release();
     }
 }
