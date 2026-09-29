@@ -67,6 +67,24 @@ final class ErrorPageTest extends AppTestCase
         self::assertSame('/account/start', $page->selectLink('Go to my start page')->attr('href'));
     }
 
+    public function testOtherClientErrorsGetTheGenericPageWithoutARetry(): void
+    {
+        $page = $this->renderError(Request::create('/cards'), new HttpException(405));
+
+        self::assertStringContainsString('Error 405 · Method Not Allowed', $page->filter('main')->text());
+        self::assertStringContainsString('not be completed', $page->filter('h1')->text());
+        self::assertCount(0, $page->selectLink('Try again'));
+        self::assertSame('/account/start', $page->selectLink('Go to my start page')->attr('href'));
+    }
+
+    public function testOtherServerErrorsGetTheGenericPageWithARetry(): void
+    {
+        $page = $this->renderError(Request::create('/cards'), new HttpException(503));
+
+        self::assertStringContainsString('Error 503 · Service Unavailable', $page->filter('main')->text());
+        self::assertSame('/cards', $page->selectLink('Try again')->attr('href'));
+    }
+
     private function renderError(Request $request, HttpException $error = new AccessDeniedHttpException()): Crawler
     {
         $container = static::getContainer();

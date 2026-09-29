@@ -1,0 +1,48 @@
+{#
+ # Shown for every error status without its own template (403, 404 and 500 have one) when debug is
+ # off, e.g. 400, 405, 413, 429 or 503 (in dev, preview one at /_error/<code>).
+ # Like the 500 page, it reads neither the database nor the user.
+ #}
+{% extends '_signed_out_layout.html.twig' %}
+
+{% set server_error = status_code >= 500 %}
+
+{% block title %}{{ status_text }}{% endblock %}
+
+{% block body %}
+<main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
+    <div class="w-full max-w-2xl lg:pl-40">
+        {% if server_error %}
+            <span class="inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1 mb-5" style="background:rgba(255,107,127,.12);color:#ff9aa8;border:1px solid rgba(255,107,127,.3)">
+        {% else %}
+            <span class="inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1 mb-5" style="background:rgba(245,154,35,.12);color:#f5b560;border:1px solid rgba(245,154,35,.3)">
+        {% endif %}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            Error {{ status_code }} · {{ status_text }}
+        </span>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">This request could<br>not be completed</h1>
+        <div class="w-full max-w-sm space-y-4">
+            <p class="text-sm leading-6" style="color:#87a4d4">
+                {% if server_error %}
+                    The service could not handle this request right now. Try again in a moment.
+                    If it keeps happening, contact support and quote the reference below.
+                {% else %}
+                    The request was not accepted. Go back and try again from the page you were on;
+                    if it keeps happening, contact support and quote the reference below.
+                {% endif %}
+            </p>
+            {% if app.request %}
+                <p class="text-xs rounded-md px-3 py-2 font-mono break-all" style="background:#0b1a36cc;color:#8ea7cf;border:1px solid #24436f">{{ 'now'|date('Y-m-d H:i:s T') }} · {{ app.request.method }} {{ app.request.pathInfo }}</p>
+            {% endif %}
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                {% if server_error and app.request and app.request.method == 'GET' %}
+                    <a href="{{ app.request.requestUri }}" class="button primary h-12 flex-1" style="margin:0" data-turbo="false">Try again</a>
+                    <a href="{{ path('app_home') }}" class="button h-12 flex-1" style="margin:0;background:transparent;color:#dbe7ff;border:1px solid #2d4770" data-turbo="false">Go to my start page</a>
+                {% else %}
+                    <a href="{{ path('app_home') }}" class="button primary h-12 flex-1" style="margin:0" data-turbo="false">Go to my start page</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
