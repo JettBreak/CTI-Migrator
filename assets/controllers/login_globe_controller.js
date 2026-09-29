@@ -21,8 +21,13 @@ import { Starfield } from '../starfield.js';
  * solar system in the free space beside the form, and back in. The wheel keeps scrolling the page instead
  * where the page is taller than the window, and does nothing while the globe is docked in the corner.
  *
+ * With the hud value the hubs on the globe also pulse, and the marker value ([lon, lat], the app's timezone)
+ * shows as an amber beacon labelled with the marker-label value (see drawHud()). Both fade out as the view
+ * zooms out, and are left off when docked.
+ *
  * <canvas data-controller="login-globe" data-login-globe-land-value="/assets/data/land-110m.json"
- *         data-login-globe-zoomable-value="true"></canvas>
+ *         data-login-globe-zoomable-value="true" data-login-globe-hud-value="true"
+ *         data-login-globe-marker-value="[120.97,14.59]" data-login-globe-marker-label-value="MANILA"></canvas>
  */
 const HUBS = [[121, 14.6], [103.8, 1.35], [139.7, 35.7], [-122.4, 37.8], [-0.1, 51.5], [55.3, 25.2], [151.2, -33.9], [114.2, 22.3]];
 const LINKS = [[0, 1], [0, 2], [0, 3], [0, 7], [1, 5], [5, 4], [2, 3], [0, 6]];
@@ -63,7 +68,7 @@ function smallCraters(count) {
 }
 
 export default class extends Controller {
-    static values = { land: String, zoomable: Boolean };
+    static values = { land: String, zoomable: Boolean, hud: Boolean, marker: Array, markerLabel: String };
 
     connect() {
         this.ctx = this.element.getContext('2d');
@@ -304,6 +309,8 @@ export default class extends Controller {
         if (this.moon.behind) this.drawMoon(now);
         ctx.restore();
         this.drawGlobe(now);
+        // Gone once the zoom has barely started, so it never hangs around a shrinking Earth.
+        if (this.hudValue) this.drawHud(now, moonAlpha * clamp(1 - this.zoom * 5));
         ctx.save();
         ctx.globalAlpha = moonAlpha;
         this.drawOrbit(false);
@@ -597,5 +604,74 @@ export default class extends Controller {
             ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
             ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
         }
+    }
+
+    /**
+     * The console-style overlay, drawn right after drawGlobe() (whose projection it reuses): a ripple from each
+     * hub on the near side, staggered so they do not beat together, and the timezone marker (see drawMarker()).
+     */
+    drawHud(now, alpha) {
+        if (alpha < 0.01) return;
+        const { ctx } = this;
+        const center = [-this.rotation, 12];
+        ctx.save();
+        ctx.lineWidth = 1.2;
+        const base = ctx.globalAlpha * alpha;
+        HUBS.forEach((hub, i) => {
+            if (geoDistance(hub, center) >= HORIZON) return;
+            const [x, y] = this.projection(hub);
+            const phase = this.still ? 0.35 : (now / 2.4 + i * 0.37) % 1;
+            ctx.globalAlpha = base * (1 - phase) * 0.9;
+            ctx.strokeStyle = '#8fc0ff';
+            ctx.beginPath(); ctx.arc(x, y, 3.5 + phase * 11, 0, 2 * Math.PI); ctx.stroke();
+        });
+        if (this.markerValue.length === 2 && geoDistance(this.markerValue, center) < HORIZON) {
+            ctx.globalAlpha = base;
+            this.drawMarker(now, this.projection(this.markerValue));
+        }
+        ctx.restore();
+    }
+
+    /**
+     * The app's timezone on the globe (the marker value, [lon, lat]): an amber beacon with a soft glow and two
+     * ripples, larger than the hubs so it stands out among them.
+     */
+    drawMarker(now, [x, y]) {
+        const { ctx } = this;
+        const base = ctx.globalAlpha;
+        const glow = ctx.createRadialGradient(x, y, 0, x, y, 16);
+        glow.addColorStop(0, 'rgba(245,154,35,.55)');
+        glow.addColorStop(1, 'rgba(245,154,35,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(x, y, 16, 0, 2 * Math.PI); ctx.fill();
+
+        ctx.strokeStyle = COLORS.arc;
+        ctx.lineWidth = 1.5;
+        for (const offset of [0, 0.5]) {
+            const phase = this.still ? 0.3 + offset : (now / 1.8 + offset) % 1;
+            ctx.globalAlpha = base * (1 - phase);
+            ctx.beginPath(); ctx.arc(x, y, 5 + phase * 18, 0, 2 * Math.PI); ctx.stroke();
+        }
+        ctx.globalAlpha = base;
+
+        ctx.fillStyle = COLORS.arc;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+
+        if (this.markerLabelValue) this.drawMarkerLabel(x, y, this.markerLabelValue);
+    }
+
+    /** The marker's city name, just right of it on a faint dark backing so it reads over the land dots. */
+    drawMarkerLabel(x, y, text) {
+        const { ctx } = this;
+        ctx.font = '600 11px "JetBrains Mono", ui-monospace, monospace';
+        const w = ctx.measureText(text).width + 12, h = 18;
+        const left = x + 11, top = y - h / 2;
+        ctx.fillStyle = 'rgba(6,14,34,.72)';
+        ctx.beginPath(); ctx.roundRect(left, top, w, h, 3); ctx.fill();
+        ctx.fillStyle = '#f5c98a';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, left + 6, y + 0.5);
     }
 }

@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="{{ asset('images/logo-256.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
     {{ importmap('app') }}
@@ -59,6 +59,13 @@
         font-size:12px;font-weight:600;color:#8ea7cf;pointer-events:none;transition:opacity .8s ease}
     .zoom-hint.is-used{opacity:0}
     @media (max-width:900px),(max-height:560px){.zoom-hint{display:none}}
+    /* Console details (sign-in page): the kicker above the heading and the live clock under the badge. */
+    .console-kicker{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:clamp(10px,1.4vh,12px);font-weight:500;letter-spacing:.12em;color:#8fc0ff;margin-bottom:clamp(6px,1.4vh,14px)}
+    .console-kicker span{color:#f5c98a}
+    .console-clock{position:absolute;top:100%;right:clamp(24px,2.5vw,40px);text-align:right;font-family:"JetBrains Mono",ui-monospace,monospace;pointer-events:none}
+    .console-clock b{display:block;font-size:clamp(18px,3vh,28px);font-weight:600;color:#fff;letter-spacing:.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+    .console-clock span{font-size:11px;font-weight:500;letter-spacing:.06em;color:#8ea7cf}
+    @media (max-width:900px),(max-height:560px){.console-clock{display:none}}
     .cred-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     @media (max-width:480px){.cred-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
@@ -69,6 +76,7 @@
     <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="brand-logo shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
     <span class="brand-name leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>
     <span class="ml-auto inline-flex items-center gap-2 text-xs font-semibold rounded-md px-2.5 py-1" style="background:var(--green-bg);color:var(--green);border:1px solid rgba(22,135,101,.2)"><span class="live-dot" style="margin:0"></span>Secure environment</span>
+    {% block header_status %}{% endblock %}
 </header>
 {% block body %}{% endblock %}
 <footer class="login-bar w-full px-6 sm:px-10 py-4 flex flex-col sm:flex-row gap-1 sm:items-center text-xs" style="color:#8ea7cf">

@@ -23,6 +23,17 @@ final class SecurityControllerTest extends AppTestCase
         self::assertResponseRedirects('/login');
     }
 
+    public function testSignInPageShowsTheConsoleClockInTheAppTimezone(): void
+    {
+        $this->client->request('GET', '/login');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.console-kicker', 'CORE ACCOUNT MIGRATION');
+        self::assertSelectorExists('.console-clock[data-controller="clock"][data-clock-time-zone-value="Asia/Manila"]');
+        self::assertSelectorTextContains('.console-clock', 'MANILA (UTC+8)');
+        // The globe's marker is where the timezone is (Manila), from the timezone database.
+        self::assertSelectorExists('canvas[data-login-globe-hud-value="true"][data-login-globe-marker-value="[120.97,14.59]"][data-login-globe-marker-label-value="MANILA"]');
+    }
+
     public function testOfficerCanSignInAndOut(): void
     {
         $this->createUser('officer');

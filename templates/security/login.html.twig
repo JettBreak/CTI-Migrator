@@ -13,8 +13,23 @@
 </style>
 {% endblock %}
 
-{# The mouse wheel zooms out from the Earth to the solar system (login-globe controller). #}
-{% block globe_attributes %}data-login-globe-zoomable-value="true"{% endblock %}
+{# The mouse wheel zooms out from the Earth to the solar system (login-globe controller); the marker is where
+   the app's timezone is. #}
+{% block globe_attributes %}
+    {%- set location = app_timezone_location() -%}
+    data-login-globe-zoomable-value="true" data-login-globe-hud-value="true"
+    {%- if location %} data-login-globe-marker-value="{{ [location.lon, location.lat]|json_encode }}" data-login-globe-marker-label-value="{{ location.city|upper }}"{% endif %}
+{%- endblock %}
+
+{# Live clock in the app's timezone (APP_TIMEZONE), e.g. "MANILA (UTC+8)"; the clock controller keeps it ticking. #}
+{% block header_status %}
+    {% set zone = 'now'|date('e') %}
+    {% set offset = 'now'|date('P')|replace({':00': ''})|replace({'+0': '+', '-0': '-'}) %}
+    <div class="console-clock" data-controller="clock" data-clock-time-zone-value="{{ zone }}" aria-hidden="true">
+        <b data-clock-target="time">{{ 'now'|date('H:i:s') }}</b>
+        <span><span data-clock-target="date">{{ 'now'|date('D d M Y')|upper }}</span> · {{ zone|split('/')|last|replace({'_': ' '})|upper }} (UTC{{ offset }})</span>
+    </div>
+{% endblock %}
 
 {% block body %}
 <main class="flex-1 flex items-center justify-start px-6 sm:px-10 lg:px-20 py-10" style="margin:0;min-height:0">
@@ -35,6 +50,7 @@
             <a href="{{ path('app_system_unlock') }}" class="button primary w-full h-12" style="margin:8px 0 0">Unlock</a>
         </div>
         {% else %}
+        <div class="console-kicker" aria-hidden="true">&gt; CORE ACCOUNT MIGRATION <span>// CONSOLE</span></div>
         <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>data migration</h1>
         <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation" data-action="field-validation#validate page-loader#show">
             <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
