@@ -43,7 +43,13 @@ export default class extends Controller {
         this.onPageShow = (event) => { if (event.persisted) this.done(); };
         if (this.waitForValue) document.addEventListener(this.waitForValue, this.onSignal);
         this.onVisit = this.onVisit.bind(this);
-        this.onSubmitEnd = (event) => { if (!event.detail.success) this.done(); };
+        this.onSubmitEnd = (event) => {
+            if (event.detail.success) return;
+            this.done();
+            // Turbo drops a form response it cannot show (a 200 page instead of a redirect or an error
+            // status, e.g. a PHP warning printed before the headers): say so instead of doing nothing.
+            if (event.detail.error) this.flashError('The server sent back a response this page cannot show, so nothing was saved. Try again, or ask the administrator to check the server log.');
+        };
 
         document.addEventListener('turbo:visit', this.onVisit);
         document.addEventListener('turbo:submit-start', this.onVisit);
@@ -116,6 +122,21 @@ export default class extends Controller {
             return;
         }
         this.hide();
+    }
+
+    /** Shows `message` as an error flash at the top of the page (replacing any earlier one of these). */
+    flashError(message) {
+        const main = document.querySelector('main');
+        if (!main) return;
+        main.querySelector('.flash.error[data-client]')?.remove();
+        const flash = document.createElement('div');
+        flash.className = 'flash error';
+        flash.dataset.client = '';
+        flash.setAttribute('role', 'alert');
+        flash.textContent = message;
+        const anchor = [...main.querySelectorAll(':scope > header, :scope > .lock-banner, :scope > .flash')].pop();
+        anchor ? anchor.after(flash) : main.prepend(flash);
+        flash.scrollIntoView({ block: 'nearest' });
     }
 
     hide() {

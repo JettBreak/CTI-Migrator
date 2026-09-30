@@ -10,6 +10,7 @@ use App\Entity\MigrationRow;
 use App\Enum\BatchStatus;
 use App\Enum\ExportKind;
 use App\Enum\ExportState;
+use App\Migration\UploadLimit;
 use App\Repository\MigrationRowRepository;
 use App\Tests\AppTestCase;
 use Doctrine\ORM\EntityManagerInterface;
@@ -491,6 +492,23 @@ final class BatchWorkflowTest extends AppTestCase
         $this->client->request('POST', '/migration', ['mapping_upload' => ['_token' => $token]], ['mapping_upload' => ['file' => new UploadedFile($path, 'mapping.csv', 'text/csv', null, true)]]);
         self::assertResponseStatusCodeSame(403);
         self::assertSame(0, static::getContainer()->get(EntityManagerInterface::class)->getRepository(MigrationBatch::class)->count([]));
+    }
+
+    public function testTheUploadFormStatesTheSizeThisServerAccepts(): void
+    {
+        // PHP's own limits (here the CLI's upload_max_filesize) cap the configured app.batch.upload_max_size.
+        $bytes = min(200 * 1024 * 1024, (int) UploadedFile::getMaxFilesize());
+        $limit = static::getContainer()->get(UploadLimit::class);
+        self::assertSame($bytes, $limit->bytes());
+
+        $this->loginAs('officer');
+        $crawler = $this->client->request('GET', '/migration');
+        self::assertSelectorTextContains('.panel', 'Files of any length up to '.$limit->label().';');
+        // The page checks the size before sending: a request over post_max_size arrives with nothing in it.
+        $input = $crawler->filter('input[name="mapping_upload[file]"]');
+        self::assertSame((string) $bytes, $input->attr('data-max-bytes'));
+        self::assertStringContainsString('this server accepts files up to '.$limit->label(), $input->attr('data-size-message'));
+        self::assertSame('field-validation', $crawler->filter('form[name="mapping_upload"]')->attr('data-controller'));
     }
 
     public function testActionsRequireACsrfToken(): void
