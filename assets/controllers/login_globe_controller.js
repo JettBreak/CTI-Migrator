@@ -25,6 +25,9 @@ import { Starfield } from '../starfield.js';
  * shows as an amber beacon labelled with the marker-label value (see drawHud()). Both fade out as the view
  * zooms out, and are left off when docked.
  *
+ * The sun value is an image URL (the company logo) drawn in place of the Sun; without it, or until it has
+ * loaded, the Sun is drawn as a glowing ball.
+ *
  * <canvas data-controller="login-globe" data-login-globe-land-value="/assets/data/land-110m.json"
  *         data-login-globe-zoomable-value="true" data-login-globe-hud-value="true"
  *         data-login-globe-marker-value="[120.97,14.59]" data-login-globe-marker-label-value="MANILA"></canvas>
@@ -68,7 +71,7 @@ function smallCraters(count) {
 }
 
 export default class extends Controller {
-    static values = { land: String, zoomable: Boolean, hud: Boolean, marker: Array, markerLabel: String };
+    static values = { land: String, zoomable: Boolean, hud: Boolean, marker: Array, markerLabel: String, sun: String };
 
     connect() {
         this.ctx = this.element.getContext('2d');
@@ -86,6 +89,10 @@ export default class extends Controller {
         this.zoom = 0; // 0: the Earth; 1: the whole solar system
         this.zoomTarget = 0;
         this.hint = document.querySelector('.zoom-hint');
+        if (this.sunValue) {
+            this.sunImage = new Image();
+            this.sunImage.src = this.sunValue;
+        }
 
         this.onResize = () => { this.resize(); this.draw(); };
         this.onVisibilityChange = () => (document.hidden ? this.stop() : this.start());
@@ -432,6 +439,14 @@ export default class extends Controller {
         corona.addColorStop(1, 'rgba(245,154,35,0)');
         ctx.fillStyle = corona;
         ctx.beginPath(); ctx.arc(x, y, r * 4, 0, 2 * Math.PI); ctx.fill();
+        // The company logo (the sun value) in place of the Sun's body, once it has loaded.
+        if (this.sunImage?.complete && this.sunImage.naturalWidth) {
+            ctx.save();
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(this.sunImage, x - r, y - r, r * 2, r * 2);
+            ctx.restore();
+            return;
+        }
         const body = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
         body.addColorStop(0, '#fffbe8');
         body.addColorStop(0.5, '#ffd36b');
