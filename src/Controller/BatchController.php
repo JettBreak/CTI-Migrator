@@ -8,6 +8,7 @@ use App\Form\MappingUploadType;
 use App\Migration\BatchLocked;
 use App\Migration\BatchWorkflow;
 use App\Migration\InvalidMappingFile;
+use App\Migration\UploadLimit;
 use App\Repository\AuditEntryRepository;
 use App\Repository\MigrationBatchRepository;
 use App\Repository\MigrationRowRepository;
@@ -40,7 +41,7 @@ final class BatchController extends AbstractController
     }
 
     #[Route('', name: 'app_migration', methods: ['GET', 'POST'])]
-    public function index(Request $request): Response
+    public function index(Request $request, UploadLimit $uploadLimit): Response
     {
         // Everyone sees the batch list; only migration officers (not approvers) get the upload form.
         if ($request->isMethod('POST')) {
@@ -67,7 +68,7 @@ final class BatchController extends AbstractController
             'form' => $form,
             'batches' => $this->batches->findRecent(),
             'sync_max_rows' => $this->getParameter('app.batch.sync_max_rows'),
-            'upload_max_size' => $this->getParameter('app.batch.upload_max_size'),
+            'upload_max_size' => $uploadLimit->label(),
         ]);
     }
 
