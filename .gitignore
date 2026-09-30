@@ -18,3 +18,9 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+
+###> local only ###
+# Secrets vault (keys and encrypted values) and any phpinfo() page: never commit.
+/config/secrets/
+/public/info.php
+###< local only ###
