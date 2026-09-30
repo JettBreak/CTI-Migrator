@@ -291,6 +291,7 @@ export default class extends Controller {
         if (this.globe.docked) {
             // In the corner, behind whatever text reaches it: dimmed, and without the moon.
             this.zoom = this.zoomTarget = 0;
+            this.turnFrom = undefined;
             ctx.save();
             ctx.globalAlpha = 0.6;
             this.drawGlobe(now);
@@ -302,6 +303,7 @@ export default class extends Controller {
             this.drawSolarSystem(now);
             return;
         }
+        this.turnFrom = undefined; // back on the Earth: the next zoom out takes its turn afresh
         this.drawEarthAndMoon(now);
     }
 
@@ -372,9 +374,14 @@ export default class extends Controller {
         const scale = Math.exp(Math.log(s0) + (Math.log(s1) - Math.log(s0)) * z);
         const anchor = { x: base.cx + ((contentRight + this.width) / 2 - base.cx) * ease, y: base.cy };
         // Start with the Earth on the left of the Sun, so the Sun comes into view on the right, away from the
-        // form; the system turns back to the planets' real places as the zoom completes.
-        const toLeft = Math.PI - this.planetAngle(EARTH, now);
-        const turn = Math.atan2(Math.sin(toLeft), Math.cos(toLeft)) * (1 - ease);
+        // form; the system turns back to the planets' real places as the zoom completes. The turn is taken
+        // once, as the zoom leaves the Earth: worked out anew every frame, it wraps from -180° to +180° each
+        // time the Earth passes the far end of its orbit, and the whole system jumped mid-zoom.
+        if (this.turnFrom === undefined) {
+            const toLeft = Math.PI - this.planetAngle(EARTH, now);
+            this.turnFrom = Math.atan2(Math.sin(toLeft), Math.cos(toLeft));
+        }
+        const turn = this.turnFrom * (1 - ease);
         const earth = this.planetAt(EARTH, now, turn);
         const follow = Math.min(1, s1 * Math.pow(z, 1.5) / scale); // 0: centred on the Earth; 1: on the Sun
         const camera = { x: earth.x * (1 - follow), y: earth.y * (1 - follow) };
