@@ -113,6 +113,30 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 @keyframes dino-cactus{from{transform:translateX(0)}to{transform:translateX(-260px)}}
 @keyframes dino-jump{0%,60%{transform:translateY(0)}66%,80%{transform:translateY(-32px)}84%{transform:translateY(-26px)}92%,100%{transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.dino,.dino-legs-a,.dino-legs-b,.dino-cactus,.dino-ground:after{animation:none}.dino-legs-b{opacity:0}.dino-cactus{display:none}}
+/* NOW LOADING, the console-style loading animation: the dots light up in turn while ten blocks fill the bar
+   (190px inside: 16px blocks, 3px apart), hold full for a moment, and start again. */
+.nl-text{position:absolute;left:0;right:0;top:10px;text-align:center;font:400 12px 'Press Start 2P',ui-monospace,monospace;letter-spacing:1px;white-space:nowrap}
+.nl-dot{animation:nl-dot 1.2s steps(1) infinite}.nl-dot:nth-child(2){animation-delay:.4s}.nl-dot:nth-child(3){animation-delay:.8s}
+.nl-bar{position:absolute;left:20px;right:20px;top:36px;height:22px;border:3px solid currentColor;padding:2px}
+.nl-bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,var(--green) 0 16px,transparent 16px 19px);animation:nl-fill 2.4s infinite}
+@keyframes nl-dot{0%{opacity:.15}33%{opacity:1}}
+@keyframes nl-fill{0%{width:0;animation-timing-function:steps(10,end)}83%,100%{width:100%}}
+@media(prefers-reduced-motion:reduce){.nl-dot,.nl-bar i{animation:none}.nl-bar i{width:60%}}
+/* Terminal, the command-line loading animation: a spinner after the command, and a [####......] bar that fills
+   in 20 steps while the percentage counts up with it (an animated integer shown by a counter), then holds. */
+@property --term-pct{syntax:'<integer>';inherits:false;initial-value:0}
+.term-cmd,.term-progress{position:absolute;left:8px;right:8px;font:500 12px 'JetBrains Mono',Consolas,ui-monospace,monospace;white-space:pre}
+.term-cmd{top:14px}.term-progress{top:40px}
+.term-prompt{color:var(--green)}
+.term-spin::before{content:'|';animation:term-spin .5s steps(1) infinite}
+.term-bar{position:relative;display:inline-block;color:var(--faint)}
+.term-done{position:absolute;left:0;top:0;width:0;overflow:hidden;color:var(--green);animation:term-fill 2.4s infinite}
+.term-pct{animation:term-count 2.4s infinite;counter-reset:pct var(--term-pct)}
+.term-pct::after{content:counter(pct) '%'}
+@keyframes term-spin{0%{content:'|'}25%{content:'/'}50%{content:'-'}75%{content:'\\'}}
+@keyframes term-fill{0%{width:0;animation-timing-function:steps(20,end)}83%,100%{width:100%}}
+@keyframes term-count{0%{--term-pct:0;animation-timing-function:steps(20,end)}83%,100%{--term-pct:100}}
+@media(prefers-reduced-motion:reduce){.term-spin::before,.term-done,.term-pct{animation:none}.term-done{width:60%}.term-pct{--term-pct:60}}
 /* Compact variant, always running: e.g. an export being prepared in the Exports table */
 .loading-indicator.compact{position:static;transform:none;flex-direction:row;gap:8px;padding:0;background:none;border:0;box-shadow:none;z-index:auto}
 .loading-indicator.compact .loading-stage{zoom:.5}
@@ -380,6 +404,21 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
     radial-gradient(ellipse 50% 90% at 92% 10%,rgba(124,77,219,.5),transparent 70%),
     radial-gradient(ellipse 45% 90% at 30% 100%,rgba(48,104,219,.45),transparent 70%),
     radial-gradient(circle at 70% 50%,#0c1f45,#050b1c 80%)}
+.theme-swatch[data-app-theme="8bit"]{border:3px solid #0f0f1b;border-radius:0;box-shadow:4px 4px 0 #0f0f1b;background:
+    linear-gradient(#e40058,#e40058) 16px 18px/56px 18px no-repeat,
+    linear-gradient(#0058f8,#0058f8) 84px 18px/18px 18px no-repeat,
+    linear-gradient(#00a800,#00a800) 108px 18px/18px 18px no-repeat,
+    linear-gradient(#f8b800,#f8b800) 132px 18px/18px 18px no-repeat,
+    repeating-linear-gradient(90deg,#00a800 0 8px,transparent 8px 10px) 16px 46px/134px 8px no-repeat,
+    linear-gradient(#0f0f1b,#0f0f1b) 14px 44px/138px 12px no-repeat,
+    #fcf4dc}
+.theme-swatch[data-app-theme=developer]{border-radius:6px;border-color:#33363e;background:
+    linear-gradient(#61afef,#61afef) 0 0/100% 2px no-repeat,
+    linear-gradient(#98c379,#98c379) 16px 18px/10px 6px no-repeat,linear-gradient(#e6e8ec,#e6e8ec) 32px 18px/70px 6px no-repeat,
+    linear-gradient(#5c6370,#5c6370) 16px 32px/40px 6px no-repeat,linear-gradient(#c678dd,#c678dd) 62px 32px/30px 6px no-repeat,linear-gradient(#d19a66,#d19a66) 98px 32px/22px 6px no-repeat,
+    linear-gradient(#56b6c2,#56b6c2) 16px 46px/54px 6px no-repeat,linear-gradient(#98c379,#98c379) 76px 46px/44px 6px no-repeat,
+    linear-gradient(#61afef,#61afef) 126px 46px/7px 12px no-repeat,
+    #1e1f24}
 /* Theme change (assets/controllers/theme_controller.js). With View Transitions the whole page is snapshotted
    and the new theme either crossfades in (a system change) or is revealed in a circle spreading from the
    clicked button (html.theme-reveal, centred on --theme-x/--theme-y, growing to --theme-r). Without them,
@@ -390,6 +429,9 @@ html.theme-reveal::view-transition-new(root){animation:theme-reveal 1.5s cubic-b
 @keyframes theme-reveal{from{clip-path:circle(0 at var(--theme-x) var(--theme-y))}to{clip-path:circle(var(--theme-r) at var(--theme-x) var(--theme-y))}}
 html.theme-fading,html.theme-fading *,html.theme-fading *::before,html.theme-fading *::after{transition:background-color 1s ease,color 1s ease,border-color 1s ease,fill 1s ease,box-shadow 1s ease}
 @media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
+/* Pixel block dissolve, the rocket swipe of themes without space scenery (assets/rocket_swipe.js) */
+.block-dissolve{position:fixed;inset:0;z-index:1001;display:grid;overflow:hidden;pointer-events:none}
+.block-dissolve i{background:var(--block-color,#0b0b1e)}
 /* Rocket swipe (assets/rocket_swipe.js, templates/_rocket_swipe.html.twig): right after signing in or out, on the
    page the user arrives on, the pixel rocket crosses the screen and its glowing trail wipes the loading overlay away
    (.rocket-swipe-front: the trail and the rocket, whose tail is the edge of the wipe), shedding sparks. */

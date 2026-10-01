@@ -1,6 +1,6 @@
 {# Shell of the signed-out pages (sign-in, error pages): the space background with the globe, header and footer. #}
 <!DOCTYPE html>
-<html lang="en" data-app-theme="{{ app_theme().value }}" class="page-loading" data-controller="page-loader" data-page-loader-wait-for-value="login-globe:ready" data-page-loader-arrival-value="sign-in">
+<html lang="en" data-app-theme="{{ app_theme().value }}" class="page-loading" data-controller="page-loader" data-page-loader-wait-for-value="{{ app_theme().sceneController }}:ready" data-page-loader-arrival-value="sign-in">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +12,13 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    {%- set theme = app_theme() %}
+    {%- if theme.fonts %}
+    <link href="{{ theme.fonts }}" rel="stylesheet">
+    {%- endif %}
+    {%- if theme.stylesheet %}
+    <link rel="stylesheet" href="{{ asset(theme.stylesheet) }}">
+    {%- endif %}
     {{ importmap('app') }}
 </head>
 <body class="login-page min-h-screen flex flex-col antialiased">
@@ -72,7 +79,18 @@
 {% block stylesheets %}{% endblock %}
 <div class="page-loader solid">{% include '_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 {{ include('_rocket_swipe.html.twig') }}
+{# The scene behind the page: the globe and solar system (space), a pixel city skyline in the app's timezone (city),
+   or a terminal window typing a boot log (terminal). #}
+{% if app_theme().scenery == 'space' %}
 <canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" data-login-globe-sun-value="{{ asset('images/logo-256.png') }}"{% block globe_attributes %}{% endblock %} aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
+{% elseif app_theme().scenery == 'terminal' %}
+<div class="boot-log" data-controller="boot-log" data-boot-log-time-zone-value="{{ 'now'|date('e') }}" aria-hidden="true">
+    <div class="boot-log-bar"><i></i><i></i><i></i><span>coreware@migration: ~ — boot.log</span></div>
+    <pre class="boot-log-text" data-boot-log-target="output"></pre>
+</div>
+{% else %}
+<canvas data-controller="pixel-city" data-pixel-city-time-zone-value="{{ 'now'|date('e') }}" data-pixel-city-logo-value="{{ asset('images/logo-32.png') }}" aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
+{% endif %}
 <header class="login-bar py-5 flex items-center gap-3.5 sm:gap-5 px-6 sm:px-10">
     <img src="{{ asset('images/logo-256.png') }}" alt="" width="50" height="50" class="brand-logo shrink-0" style="filter:drop-shadow(0 0 10px rgba(245,154,35,.55))">
     <span class="brand-name leading-tight" style="font-family:Manrope,sans-serif;font-weight:800;letter-spacing:-.5px;color:#fff;text-shadow:0 0 22px rgba(120,170,255,.45)">Coreware Technologies Inc.</span>

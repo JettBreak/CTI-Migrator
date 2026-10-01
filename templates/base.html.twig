@@ -46,6 +46,13 @@
         }
     </script>
     <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    {%- set theme = app_theme() %}
+    {%- if theme.fonts %}
+    <link href="{{ theme.fonts }}" rel="stylesheet">
+    {%- endif %}
+    {%- if theme.stylesheet %}
+    <link rel="stylesheet" href="{{ asset(theme.stylesheet) }}">
+    {%- endif %}
     {% block importmap %}{{ importmap('app') }}{% endblock %}
     {# Same-page refreshes (e.g. auto-refresh) update the page in place and keep the scroll position. #}
     <meta name="turbo-refresh-method" content="morph">
@@ -56,7 +63,9 @@
 <div class="page-loader">{% include '_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 {{ include('_rocket_swipe.html.twig') }}<aside class="sidebar shadow-2xl shadow-slate-900/20">
     {# Permanent: Turbo's morphing refresh would otherwise reset the canvas size the controller sets, stretching the stars. #}
+    {% if app_theme().scenery == 'space' %}
     <canvas id="sidebar-stars" class="sidebar-stars" data-controller="starfield" data-turbo-permanent aria-hidden="true"></canvas>
+    {% endif %}
     {% set route = app.request.attributes.get('_route') %}
     <a class="brand" href="{{ path('app_home') }}"><img class="brand-logo" src="{{ asset('images/logo-64.png') }}" alt="" width="36" height="36"><span>Coreware<small>data migration</small></span></a>
     <nav>
@@ -85,8 +94,10 @@
     <div class="sidebar-footer"><span class="live-dot"></span> Secure environment<br><small>v1.0</small></div>
 </aside>
 {# Faint stars and shooting stars behind the page in the dark theme; idle in light (starfield controller, dark-only). #}
+{% if app_theme().scenery == 'space' %}
 <canvas id="page-stars" class="page-stars" data-controller="starfield" data-starfield-dark-only-value="true" data-starfield-count-value="160" data-starfield-seed-value="20260929"
         data-starfield-meteors-value='{"gap": [0.6, 2], "max": 3, "distance": [220, 420], "tail": [60, 130]}' data-turbo-permanent aria-hidden="true"></canvas>
+{% endif %}
 <main>
     <header>
         <div class="crumb">Operations <b>/</b> {% block crumb %}Overview{% endblock %}</div>

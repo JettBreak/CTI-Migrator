@@ -1,0 +1,157 @@
+/* Developer console theme (App\Enum\AppTheme::Developer, chosen in Administration > Settings), loaded after app.css on
+   every page while it is the theme in use. A modern terminal / code editor look: JetBrains Mono everywhere, a
+   charcoal editor (dark) or a clean light editor (light) with syntax-highlight accents (cyan, green, orange, purple),
+   thin 1px panes with a coloured top edge like an editor tab, headings as shell prompts and eyebrows as comments.
+
+   Nothing of the space theme shows here (AppTheme::scenery() is "terminal"): the sign-in page has a terminal window
+   typing a boot log (assets/controllers/boot_log_controller.js), the loader is a command-line spinner and progress
+   bar, and signing in or out clears the screen line by line.
+
+   Every rule is scoped to <html data-app-theme="developer">. Light and dark follow the header's switch: the light
+   tokens are on <html>, the dark ones on <body>, like app.css. */
+
+[data-app-theme="developer"]{
+    --dev-font:'JetBrains Mono',Consolas,ui-monospace,monospace;
+    --dev-cyan:#0184bc;--dev-orange:#986801;--dev-purple:#a626a4;--dev-on-accent:#fff;
+    --dev-gutter:#f0f1f4;
+    --ink:#24292f;--text:#383a42;--text-2:#4f5561;--muted:#6a717d;--faint:#9097a3;
+    --line:#e3e5ea;--line-strong:#c9cdd5;--navy:#21252b;--blue:#4078f2;--link:#3366d6;
+    --pale:#f7f8fa;--surface:#fff;--surface-2:#f6f7f9;--track:#e6e8ec;--toggle:#c9cdd5;
+    --eyebrow:#a0a1a7;--accent-bg:#e8eefc;--accent-ink:#3366d6;--chip-bg:#eef0f3;--chip-ink:#4f5561;
+    --violet-bg:#f6e8f6;--violet:#a626a4;--green:#3f8f3e;--green-bg:#e9f5e8;
+    --red:#d73a49;--red-bg:#fdeced;--red-soft:#fad6da;--red-line:#f0b4bb;
+    --amber:#986801;--amber-bg:#fdf5e1;--amber-soft:#f8e7b8;--amber-line:#efd894;
+}
+[data-app-theme="developer"][data-theme=dark] body:not(.login-page),[data-app-theme="developer"] body.login-page{
+    --dev-cyan:#56b6c2;--dev-orange:#d19a66;--dev-purple:#c678dd;--dev-on-accent:#1e1f24;
+    --dev-gutter:#1a1b1f;
+    --ink:#e6e8ec;--text:#c8ccd4;--text-2:#abb2bf;--muted:#8b929e;--faint:#5c6370;
+    --line:#33363e;--line-strong:#454a54;--navy:#18191d;--blue:#61afef;--link:#61afef;
+    --pale:#1e1f24;--surface:#25272d;--surface-2:#2a2d34;--track:#33363e;--toggle:#4b505a;
+    --eyebrow:#5c6370;--accent-bg:#2c3a4f;--accent-ink:#61afef;--chip-bg:#30333b;--chip-ink:#abb2bf;
+    --violet-bg:#3a2c42;--violet:#c678dd;--green:#98c379;--green-bg:#2b3828;
+    --red:#e06c75;--red-bg:#3d2a2e;--red-soft:#4f2d33;--red-line:#7a3a42;
+    --amber:#e5c07b;--amber-bg:#3a3324;--amber-soft:#4a4029;--amber-line:#6b5a32;
+    --glass-edge:#33363e;--glass-shadow:none;
+}
+
+/* ---- Editor panes: flat, 1px, small corners, no glass ---------------------------------------------------- */
+[data-app-theme="developer"] body:not(.login-page){background:var(--pale)}
+[data-app-theme="developer"] :is(.panel,.metrics article,.progress-steps,.action-tile,.confirm-modal,main>header,.loading-indicator,.directory-panel thead th){
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+[data-app-theme="developer"] :is(.panel,.metrics article,.progress-steps,.action-tile,.confirm-modal){
+    background:var(--surface)!important;border:1px solid var(--line)!important;border-radius:6px!important;box-shadow:none!important}
+/* Each pane's top edge in the accent colour, like the active tab of an editor */
+[data-app-theme="developer"] :is(.panel,.metrics article){border-top:2px solid var(--blue)!important}
+[data-app-theme="developer"] .panel .panel{border-top-width:1px!important;border-top-color:var(--line)!important}
+[data-app-theme="developer"] .metrics article:nth-child(4n+2){border-top-color:var(--dev-purple)!important}
+[data-app-theme="developer"] .metrics article:nth-child(4n+3){border-top-color:var(--green)!important}
+[data-app-theme="developer"] .metrics article:nth-child(4n+4){border-top-color:var(--dev-orange)!important}
+[data-app-theme="developer"] :focus-visible{outline:2px solid var(--blue)!important;outline-offset:1px}
+[data-app-theme="developer"] ::selection{background:#61afef55}
+
+/* ---- Type: monospace throughout; headings as shell prompts, eyebrows as comments ------------------------ */
+[data-app-theme="developer"] :is(body,input,select,textarea,button,.button,.signout-button,.brand,.brand small,main h1,main h2,.metrics strong,.loading-label,.mono){
+    font-family:var(--dev-font)!important}
+[data-app-theme="developer"] body{font-size:13px}
+[data-app-theme="developer"] main h1{font-size:24px;letter-spacing:-.5px;font-weight:600}
+[data-app-theme="developer"] main h1::before{content:"$ ";color:var(--green);font-weight:500}
+[data-app-theme="developer"] main h2{font-size:15px;font-weight:600}
+[data-app-theme="developer"] .eyebrow{font-size:11px;letter-spacing:0;text-transform:lowercase;font-weight:500}
+[data-app-theme="developer"] .eyebrow::before{content:"// "}
+[data-app-theme="developer"] .metrics strong{font-size:21px;font-weight:600;color:var(--dev-orange)}
+[data-app-theme="developer"] th{font-size:11px;letter-spacing:0;text-transform:lowercase;font-weight:500;color:var(--dev-cyan)}
+[data-app-theme="developer"] .tag{font-size:11px;font-weight:500;border-radius:3px;padding:3px 7px}
+[data-app-theme="developer"] .tag::before{content:"● ";font-size:9px}
+[data-app-theme="developer"] .flash{border-radius:4px;border:1px solid currentColor;font-weight:500}
+[data-app-theme="developer"] .flash.success::before{content:"✓ "}
+[data-app-theme="developer"] .flash.error::before{content:"✗ "}
+
+/* ---- Header and sidebar: the editor's title bar and file explorer ---------------------------------------- */
+[data-app-theme="developer"] body:not(.login-page) main>header{background:var(--surface);border-bottom:1px solid var(--line);box-shadow:none;height:56px}
+[data-app-theme="developer"] .crumb{font-family:var(--dev-font);color:var(--muted)}
+[data-app-theme="developer"] .crumb b{color:var(--faint)}
+[data-app-theme="developer"] .sidebar{background:#18191d;border-right:1px solid #2c2f36;box-shadow:none!important}
+[data-app-theme="developer"] .brand{font-size:14px;font-weight:600}
+[data-app-theme="developer"] .brand small{font-size:10px;letter-spacing:.5px;color:#5c6370}
+[data-app-theme="developer"] .sidebar nav p{font-family:var(--dev-font);font-size:10px;letter-spacing:.5px;color:#5c6370;text-transform:lowercase}
+[data-app-theme="developer"] .sidebar nav p::before{content:"▾ "}
+[data-app-theme="developer"] .sidebar nav a{font-family:var(--dev-font);font-size:12.5px;color:#abb2bf;border-radius:0;border-left:2px solid transparent;padding-top:8px;padding-bottom:8px}
+[data-app-theme="developer"] .sidebar nav a:hover{background:#2c313a;box-shadow:none;color:#e6e8ec}
+[data-app-theme="developer"] .sidebar nav a.active{background:#2c313a;color:#fff;border-left-color:#61afef;box-shadow:none}
+[data-app-theme="developer"] .sidebar-footer{border-top:1px solid #2c2f36;font-family:var(--dev-font);font-size:11px}
+[data-app-theme="developer"] .live-dot{background:#98c379}
+
+/* ---- Buttons and fields ------------------------------------------------------------------------------- */
+[data-app-theme="developer"] :is(.button,.signout-button){font-size:12px;font-weight:500;border-radius:4px;box-shadow:none!important}
+[data-app-theme="developer"] .button.primary{background:var(--blue);color:var(--dev-on-accent)}
+[data-app-theme="developer"] .button.primary:hover{filter:brightness(1.08)}
+[data-app-theme="developer"] .button.outline{background:transparent;border-color:var(--line-strong)}
+[data-app-theme="developer"] .signout-button{border-radius:4px;background:transparent}
+[data-app-theme="developer"] :is(input:not([type=radio]):not([type=checkbox]):not([type=range]),select,textarea,form.search,.filter){border-radius:4px!important}
+[data-app-theme="developer"] form.search:focus-within{box-shadow:0 0 0 2px #61afef33}
+[data-app-theme="developer"] :is(input[type=radio],input[type=checkbox]){accent-color:var(--blue)}
+[data-app-theme="developer"] .theme-switch{border-radius:4px}
+[data-app-theme="developer"] .theme-switch button{border-radius:3px}
+[data-app-theme="developer"] .avatar{border-radius:4px;font-family:var(--dev-font)}
+
+/* ---- Tables: an editor's gutter for the header row, a highlighted current line on hover ---------------- */
+[data-app-theme="developer"] th{background:var(--dev-gutter)}
+[data-app-theme="developer"][data-theme=dark] body:not(.login-page) .directory-panel thead th{background:var(--dev-gutter)}
+[data-app-theme="developer"] tbody tr:hover td{background:var(--accent-bg)}
+
+/* ---- Progress bar: a thin solid bar, in place of the shooting star ------------------------------------ */
+[data-app-theme="developer"] .progress-track{height:6px;border-radius:3px;background:var(--track);box-shadow:none}
+[data-app-theme="developer"] .progress-track>i{border-radius:3px;background:var(--green);box-shadow:none;animation:none}
+[data-app-theme="developer"] .progress-track>i::before,[data-app-theme="developer"] .progress-track>i::after{display:none}
+[data-app-theme="developer"] .progress-track.slim{height:4px}
+
+/* ---- Loading indicator and overlay --------------------------------------------------------------------- */
+[data-app-theme="developer"] .loading-indicator:not(.compact){border-radius:6px;box-shadow:none;border:1px solid var(--line)}
+[data-app-theme="developer"][data-theme=dark] body:not(.login-page) :not(.page-loader)>.loading-indicator:not(.compact){background:var(--surface);border-color:var(--line)}
+[data-app-theme="developer"] .loading-label{font-size:11px;font-weight:500;letter-spacing:0}
+[data-app-theme="developer"] .page-loader{background:#1e1f24c8}
+[data-app-theme="developer"] :is(.swipe-pending .page-loader,.page-loader.solid){background:#1e1f24}
+[data-app-theme="developer"] .page-loader .loading-indicator{--green:#98c379;--faint:#5c6370;background:#25272d;color:#c8ccd4;border:1px solid #33363e;border-top:2px solid #61afef;box-shadow:0 12px 32px #0008}
+[data-app-theme="developer"] .page-loader .loading-label{color:#5c6370}
+[data-app-theme="developer"] .page-loader .loading-label::before{content:"// "}
+
+/* ---- Sign-in and other signed-out pages: the dark editor, the form as one pane, the boot log as another ---- */
+[data-app-theme="developer"] body.login-page{background:#1e1f24!important}
+[data-app-theme="developer"] .login-page header.login-bar{background:#18191d;border-bottom:1px solid #2c2f36}
+[data-app-theme="developer"] .login-page .brand-name{font-family:var(--dev-font)!important;font-weight:600!important;font-size:clamp(14px,2.2vh,20px)!important;letter-spacing:0!important;text-shadow:none!important}
+[data-app-theme="developer"] .login-page .brand-logo{filter:none!important}
+[data-app-theme="developer"] .login-page header>span.ml-auto{border-radius:3px!important;font-family:var(--dev-font)}
+[data-app-theme="developer"] .login-page .content-column{margin-left:clamp(0px,59.7vw - 560px,160px);padding:clamp(16px,3vh,28px) clamp(18px,2.4vw,30px);
+    max-width:min(500px,100%);background:#25272d;border:1px solid #33363e;border-top:2px solid #61afef;border-radius:6px}
+[data-app-theme="developer"] .console-kicker{font-family:var(--dev-font)!important;letter-spacing:0!important;color:#5c6370!important;text-transform:lowercase}
+[data-app-theme="developer"] .console-kicker::before{content:"// "}
+[data-app-theme="developer"] .console-kicker span{color:#5c6370}
+[data-app-theme="developer"] .login-page>main h1{font-family:var(--dev-font)!important;font-weight:600;letter-spacing:-.5px;font-size:clamp(20px,3.6vh,32px)!important;color:#e6e8ec!important}
+[data-app-theme="developer"] .login-page>main h1::before{content:"$ ";color:#98c379;font-weight:500}
+[data-app-theme="developer"] .login-page>main :is(p,div,span,a,label){font-family:var(--dev-font)}
+[data-app-theme="developer"] .login-page>main label{color:#c678dd!important;font-weight:500!important;text-transform:lowercase}
+[data-app-theme="developer"] .login-page>main label>input{font-family:var(--dev-font);background:#1e1f24!important;color:#98c379!important;border:1px solid #454a54!important;border-radius:4px!important;caret-color:#61afef}
+[data-app-theme="developer"] .login-page>main label>input:focus{border-color:#61afef!important;box-shadow:0 0 0 2px #61afef33!important}
+[data-app-theme="developer"] .login-page>main a[href]{border-radius:4px!important;border-color:#454a54!important}
+[data-app-theme="developer"] .console-clock{top:calc(100% + 14px);padding:8px 12px;background:#25272d;border:1px solid #33363e;border-radius:6px}
+[data-app-theme="developer"] .console-clock b{font-family:var(--dev-font);color:#d19a66!important}
+[data-app-theme="developer"] .login-page>footer{font-family:var(--dev-font);font-size:11px;color:#5c6370!important}
+
+/* The boot log: a terminal window on the right, where the space theme has its globe */
+.boot-log{position:fixed;right:clamp(24px,5vw,90px);top:50%;transform:translateY(-46%);width:min(560px,38vw);height:min(400px,56vh);z-index:0;
+    display:flex;flex-direction:column;background:#18191d;border:1px solid #33363e;border-radius:8px;box-shadow:0 24px 60px #0009;overflow:hidden;pointer-events:none}
+.boot-log-bar{display:flex;align-items:center;gap:7px;padding:9px 12px;background:#25272d;border-bottom:1px solid #33363e;font:500 11px var(--dev-font,monospace);color:#8b929e}
+.boot-log-bar i{width:10px;height:10px;border-radius:50%;background:#e06c75}.boot-log-bar i:nth-child(2){background:#e5c07b}.boot-log-bar i:nth-child(3){background:#98c379}
+.boot-log-bar span{margin-left:10px}
+.boot-log-text{flex:1;margin:0;padding:14px 16px;overflow:hidden;font:400 12.5px/1.75 var(--dev-font,monospace);color:#abb2bf;white-space:pre-wrap;display:flex;flex-direction:column;justify-content:flex-end}
+.bl-time{color:#5c6370}
+.bl-cmd .bl-tag,.bl-prompt{color:#98c379}
+.bl-cmd>span:last-child{color:#e6e8ec}
+.bl-ok .bl-tag{color:#98c379}
+.bl-info .bl-tag{color:#61afef}
+.bl-plain>span:last-child{color:#c678dd}
+.bl-cursor{display:inline-block;width:.6em;height:1.1em;vertical-align:-.2em;background:#61afef;animation:bl-blink 1s steps(1) infinite}
+@keyframes bl-blink{50%{opacity:0}}
+@media (max-width:1000px),(max-height:560px){.boot-log{display:none}}
+@media (prefers-reduced-motion:reduce){.bl-cursor{animation:none}}

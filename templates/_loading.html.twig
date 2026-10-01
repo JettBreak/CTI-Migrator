@@ -1,7 +1,8 @@
 {#
     Loading indicator, in the animation set for everyone in Administration > Settings (loading_animation()):
     a pixel rocket cruising through streaking stars and lifting over an asteroid, or a pixel dinosaur
-    running over the ground and jumping a cactus.
+    running over the ground and jumping a cactus, a console-style NOW LOADING over a block bar filling up, or a
+    command-line spinner over a [#####.....] bar counting up to 100%.
     By default it is an overlay card, hidden until its parent gets the "is-loading" class
     (see assets/controllers/loading_controller.js).
     Params:
@@ -14,7 +15,13 @@
 {% set animation = animation|default(loading_animation()) %}
 <div class="loading-indicator{{ compact|default(false) ? ' compact' }}{{ active|default(false) ? ' is-active' }}" role="status" aria-live="polite" data-animation="{{ animation.value }}">
     <div class="loading-stage" aria-hidden="true">
-        {% if animation.value == 'dinosaur' %}
+        {% if animation.value == 'terminal' %}
+        <div class="term-cmd"><span class="term-prompt">$</span> fetch --wait <span class="term-spin"></span></div>
+        <div class="term-progress">[<span class="term-bar"><span class="term-todo">....................</span><span class="term-done">####################</span></span>] <span class="term-pct"></span></div>
+        {% elseif animation.value == 'now-loading' %}
+        <div class="nl-text">NOW LOADING<span class="nl-dot">.</span><span class="nl-dot">.</span><span class="nl-dot">.</span></div>
+        <div class="nl-bar"><i></i></div>
+        {% elseif animation.value == 'dinosaur' %}
         <svg class="dino" viewBox="0 0 24 21" shape-rendering="crispEdges">
             <path d="M14 0h8v1h-8zM13 1h10v1h-10zM13 2h2v1h-2zM16 2h7v1h-7zM13 3h10v1h-10zM13 4h10v1h-10zM13 5h5v1h-5zM13 6h8v1h-8zM1 7h1v1h-1zM12 7h5v1h-5zM1 8h1v1h-1zM11 8h6v1h-6zM1 9h2v1h-2zM10 9h9v1h-9zM1 10h3v1h-3zM9 10h7v1h-7zM17 10h1v1h-1zM1 11h4v1h-4zM7 11h9v1h-9zM1 12h14v1h-14zM2 13h13v1h-13zM3 14h11v1h-11zM4 15h9v1h-9zM5 16h7v1h-7z"/>
             <path class="dino-legs-a" d="M5 17h3v1h-3zM9 17h2v1h-2zM5 18h2v1h-2zM10 18h2v1h-2zM5 19h1v1h-1zM5 20h2v1h-2z"/>

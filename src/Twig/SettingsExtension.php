@@ -9,7 +9,8 @@ use Symfony\Contracts\Service\ResetInterface;
 use Twig\Attribute\AsTwigFunction;
 
 /**
- * loading_animation(): the animation every loading indicator shows (templates/_loading.html.twig).
+ * loading_animation(): the animation every loading indicator shows (templates/_loading.html.twig): the one chosen in
+ * settings, or the theme's own where the theme does not show that one.
  * app_theme(): the theme every page is drawn in (<html data-app-theme> in the layouts).
  */
 final class SettingsExtension implements ResetInterface
@@ -24,7 +25,13 @@ final class SettingsExtension implements ResetInterface
     #[AsTwigFunction('loading_animation')]
     public function loadingAnimation(): LoadingAnimation
     {
-        return $this->animation ??= $this->settings->loadingAnimation();
+        if (null === $this->animation) {
+            $theme = $this->theme();
+            $chosen = $this->settings->loadingAnimation();
+            $this->animation = $theme->allows($chosen) ? $chosen : $theme->defaultLoadingAnimation();
+        }
+
+        return $this->animation;
     }
 
     #[AsTwigFunction('app_theme')]

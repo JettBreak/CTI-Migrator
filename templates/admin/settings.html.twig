@@ -43,7 +43,8 @@
                     <span class="loader-option-head">
                         {{ form_widget(choice) }}
                         <span><b>{{ animation.label }}</b><small class="muted">{{ animation.description }}</small></span>
-                        {% if animation == current %}<span class="tag success current">In use</span>{% endif %}
+                        {% if not currentTheme.allows(animation) %}<span class="tag neutral current">Not in the {{ currentTheme.label }} theme</span>
+                        {% elseif animation == loading_animation() %}<span class="tag success current">In use</span>{% endif %}
                     </span>
                     {{ include('_loading.html.twig', {active: true, animation: animation, label: 'Loading…'}) }}
                 </label>

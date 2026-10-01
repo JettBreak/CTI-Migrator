@@ -1,0 +1,185 @@
+/* 8-bit console theme (App\Enum\AppTheme::EightBit, chosen in Administration > Settings), loaded after app.css on
+   every page while it is the theme in use. An NES-style look: the console's bold primaries on cream (light) or
+   night blue (dark), square corners, chunky outlines, hard drop shadows, buttons that press in, and pixel fonts:
+   Press Start 2P for headings, labels and buttons; Pixelify Sans, easier to read, for the rest. Account and card
+   numbers (.mono) keep a plain monospace font.
+
+   Nothing of the space theme shows here: no starfields, globe or rocket (AppTheme::scenery() is "city"). The
+   sign-in page has a pixel city skyline instead (assets/controllers/pixel_city_controller.js), the loader is
+   NOW LOADING, and signing in or out dissolves the screen in blocks.
+
+   Every rule is scoped to <html data-app-theme="8bit">. Light and dark still follow the header's switch: the
+   light tokens are on <html>, the dark ones on <body>, like app.css. */
+
+[data-app-theme="8bit"]{
+    --px-font:'Press Start 2P',ui-monospace,monospace;
+    --px-body:'Pixelify Sans','DM Sans',sans-serif;
+    --px-outline:#0f0f1b;   /* the black outline on everything */
+    --px-shadow:#0f0f1b;    /* hard drop shadows */
+    --px-start:#e40058;     /* the START button */
+    --px-start-ink:#fff;
+    --px-gold:#f8b800;
+    --px-bar:#00a800;       /* progress bar blocks */
+    --ink:#0f0f1b;--text:#26263a;--text-2:#3c3c55;--muted:#5f5f78;--faint:#8a8aa0;
+    --line:#dfd0a8;--line-strong:#0f0f1b;--navy:#0f0f1b;--blue:#0058f8;--link:#0046c8;
+    --pale:#fcf4dc;--surface:#fffdf4;--surface-2:#f6ecd0;--track:#eadcb4;--toggle:#bfb08a;
+    --eyebrow:#c8004c;--accent-bg:#d8e4ff;--accent-ink:#0040b8;--chip-bg:#efe3c0;--chip-ink:#45455c;
+    --violet-bg:#ece0ff;--violet:#6830d8;--green:#007a00;--green-bg:#d6f5cc;
+    --red:#c8003c;--red-bg:#ffe2ea;--red-soft:#ffc6d6;--red-line:#e40058;
+    --amber:#8a5200;--amber-bg:#fff0c4;--amber-soft:#fce298;--amber-line:#f8b800;
+}
+[data-app-theme="8bit"][data-theme=dark] body:not(.login-page),[data-app-theme="8bit"] body.login-page{
+    --px-outline:#fcfcfc;--px-shadow:#000;--px-gold:#fcd000;--px-bar:#58d854;
+    --ink:#fcfcfc;--text:#e2e2f2;--text-2:#c8c8e0;--muted:#a0a0c8;--faint:#7a7aa8;
+    --line:#2c2c5c;--line-strong:#fcfcfc;--navy:#000;--blue:#3cbcfc;--link:#6cd0ff;
+    --pale:#0b0b1e;--surface:#16163a;--surface-2:#10102c;--track:#24244c;--toggle:#4a4a80;
+    --eyebrow:#fcd000;--accent-bg:#18306c;--accent-ink:#8cd4ff;--chip-bg:#24244c;--chip-ink:#c8c8e8;
+    --violet-bg:#2c1c64;--violet:#bca8ff;--green:#58d854;--green-bg:#0c3818;
+    --red:#ff6a8a;--red-bg:#3c0c20;--red-soft:#5c1430;--red-line:#ff4d6d;
+    --amber:#fcd000;--amber-bg:#382e00;--amber-soft:#584800;--amber-line:#fcd000;
+    --glass-edge:#fcfcfc;--glass-shadow:none;
+}
+
+/* ---- Pixels: square corners everywhere, no blur, no soft glows ---------------------------------------- */
+[data-app-theme="8bit"] *,[data-app-theme="8bit"] ::before,[data-app-theme="8bit"] ::after{border-radius:0!important}
+[data-app-theme="8bit"] :is(.panel,.metrics article,.progress-steps,.action-tile,.confirm-modal,main>header,.loading-indicator,.directory-panel thead th){
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+[data-app-theme="8bit"] canvas{image-rendering:pixelated}
+[data-app-theme="8bit"] ::selection{background:var(--px-gold);color:#0f0f1b}
+[data-app-theme="8bit"] :focus-visible{outline:3px solid var(--px-gold)!important;outline-offset:2px}
+
+/* ---- Type ------------------------------------------------------------------------------------------- */
+[data-app-theme="8bit"] :is(body,input,select,textarea,button){font-family:var(--px-body)}
+[data-app-theme="8bit"] body{font-size:15px;-webkit-font-smoothing:none}
+[data-app-theme="8bit"] .mono{font-family:Consolas,'JetBrains Mono',monospace}
+[data-app-theme="8bit"] :is(main h1,main h2,.brand,.eyebrow,.button,.signout-button,th,.metrics strong,.progress-steps span,.tag,.console-kicker,.console-clock b,.brand-name){
+    font-family:var(--px-font)!important;letter-spacing:0!important;font-weight:400!important}
+[data-app-theme="8bit"] main h1{font-size:20px;line-height:1.35}
+[data-app-theme="8bit"] main h2{font-size:12px;line-height:1.5}
+[data-app-theme="8bit"] .eyebrow{font-size:8px;line-height:1.6}
+[data-app-theme="8bit"] .metrics strong{font-size:16px;margin:6px 0 4px}
+[data-app-theme="8bit"] th{font-size:8px;line-height:1.6;text-transform:uppercase}
+[data-app-theme="8bit"] .tag{font-size:7px;line-height:1.4;padding:5px 7px;border:2px solid currentColor}
+[data-app-theme="8bit"] .progress-steps span{font-size:8px;line-height:1.6}
+[data-app-theme="8bit"] .progress-steps small{font-family:var(--px-body);font-size:12px}
+
+/* ---- Page, header, sidebar ---------------------------------------------------------------------------- */
+[data-app-theme="8bit"] body:not(.login-page){background:var(--pale)}
+[data-app-theme="8bit"][data-theme=dark] body:not(.login-page){background:var(--pale)}
+[data-app-theme="8bit"] body:not(.login-page) main>header{background:var(--surface);border-bottom:3px solid var(--line-strong);box-shadow:none}
+[data-app-theme="8bit"] .sidebar{background:
+    linear-gradient(90deg,#ffffff0a 1px,transparent 1px) 0 0/8px 8px,
+    linear-gradient(#ffffff0a 1px,transparent 1px) 0 0/8px 8px,#0f0f1b;
+    border-right:3px solid #000;box-shadow:none!important}
+[data-app-theme="8bit"] .brand{font-size:11px;line-height:1.5}
+[data-app-theme="8bit"] .brand small{font-family:var(--px-body)!important;font-size:11px;letter-spacing:1px}
+[data-app-theme="8bit"] .sidebar nav p{font-family:var(--px-font);font-size:7px;letter-spacing:0;color:var(--px-gold)}
+[data-app-theme="8bit"] .sidebar nav a{position:relative;font-size:15px;color:#d8d8f0;border:2px solid transparent}
+[data-app-theme="8bit"] .sidebar nav a:hover{background:#ffffff14;box-shadow:none;border-color:#ffffff30}
+/* The active page: white on NES blue, with the menu cursor */
+[data-app-theme="8bit"] .sidebar nav a.active{background:#0058f8;color:#fff;border-color:#fff;box-shadow:3px 3px 0 #000}
+[data-app-theme="8bit"] .sidebar nav a.active::after{content:"";position:absolute;right:10px;top:50%;margin-top:-5px;
+    border:5px solid transparent;border-right:6px solid #fff;animation:px-blink 1s steps(1) infinite}
+[data-app-theme="8bit"] .sidebar-footer{border-top:2px dashed #ffffff40}
+[data-app-theme="8bit"] .live-dot{background:#58d854;box-shadow:none;animation:px-blink 1.2s steps(1) infinite}
+@keyframes px-blink{50%{opacity:0}}
+
+/* ---- Boxes: panels, tiles, modals, flashes ------------------------------------------------------------ */
+[data-app-theme="8bit"] :is(.panel,.metrics article,.progress-steps,.action-tile,.confirm-modal){
+    background:var(--surface)!important;border:3px solid var(--px-outline)!important;box-shadow:5px 5px 0 var(--px-shadow)!important}
+[data-app-theme="8bit"] .panel .panel{box-shadow:none!important;border-width:2px!important}
+[data-app-theme="8bit"] .metric-icon{border:2px solid currentColor}
+[data-app-theme="8bit"] .flash{border:3px solid currentColor;box-shadow:4px 4px 0 var(--px-shadow)}
+[data-app-theme="8bit"] .flash.success::before{content:"\25B6  "}
+[data-app-theme="8bit"] .flash.error::before{content:"!  "}
+[data-app-theme="8bit"] :not(.page-loader)>.loading-indicator:not(.compact){background:var(--surface)!important;border:3px solid var(--px-outline)!important;box-shadow:5px 5px 0 var(--px-shadow)}
+/* The full-page loading overlay: console night blue instead of deep space */
+[data-app-theme="8bit"] .page-loader{background:#0b0b1ec8}
+[data-app-theme="8bit"] :is(.swipe-pending .page-loader,.page-loader.solid){background:#0b0b1e}
+[data-app-theme="8bit"] .page-loader .loading-indicator{background:#16163a;color:#fcfcfc;border:3px solid #fcfcfc;box-shadow:5px 5px 0 #000}
+[data-app-theme="8bit"] .page-loader .loading-label{color:#fcd000}
+[data-app-theme="8bit"] .loading-label{font-family:var(--px-font);font-size:8px;font-weight:400;letter-spacing:0}
+
+/* ---- Tables ---------------------------------------------------------------------------------------- */
+[data-app-theme="8bit"] th{background:var(--surface-2);border-bottom:3px solid var(--px-outline)}
+[data-app-theme="8bit"][data-theme=dark] body:not(.login-page) .directory-panel thead th{background:var(--surface-2)}
+[data-app-theme="8bit"] tbody tr:hover td{background:var(--accent-bg)}
+
+/* ---- Buttons: an outline, a hard shadow, and they press in ----------------------------------------- */
+[data-app-theme="8bit"] :is(.button,.signout-button){font-size:9px;line-height:1.4;text-transform:uppercase;border:3px solid var(--px-outline)!important;
+    box-shadow:3px 3px 0 var(--px-shadow)!important;transition:none}
+[data-app-theme="8bit"] :is(.button,.signout-button):active{transform:translate(3px,3px);box-shadow:none!important}
+[data-app-theme="8bit"] .button.primary{background:var(--px-start);color:var(--px-start-ink)}
+[data-app-theme="8bit"] .button.primary:hover{background:#ff2a74}
+[data-app-theme="8bit"] .button.dark{background:#0f0f1b;color:#fff}
+[data-app-theme="8bit"] .button.outline{background:var(--surface);color:var(--ink)}
+[data-app-theme="8bit"] .button.small{font-size:8px;padding:7px 10px}
+[data-app-theme="8bit"] .button.disabled,[data-app-theme="8bit"] .button:disabled{box-shadow:none!important;border-style:dashed!important}
+[data-app-theme="8bit"] .signout-button{background:var(--surface);color:var(--ink)}
+[data-app-theme="8bit"] .signout-button:hover{background:var(--px-start);color:#fff}
+
+/* ---- Form fields ----------------------------------------------------------------------------------- */
+[data-app-theme="8bit"] :is(input:not([type=radio]):not([type=checkbox]):not([type=range]),select,textarea,form.search,.filter){
+    border:2px solid var(--px-outline)!important;background-color:var(--surface);box-shadow:inset 2px 2px 0 #0000001f!important}
+[data-app-theme="8bit"] form.search input,[data-app-theme="8bit"] .filter select{border:0!important;box-shadow:none!important;background:transparent}
+[data-app-theme="8bit"] :is(input,select,textarea):focus{border-color:var(--blue)!important}
+[data-app-theme="8bit"] form.search:focus-within{border-color:var(--blue)!important}
+[data-app-theme="8bit"] :is(input[type=radio],input[type=checkbox]){accent-color:var(--px-start)}
+
+/* ---- Small parts ----------------------------------------------------------------------------------- */
+[data-app-theme="8bit"] .theme-switch{border:2px solid var(--px-outline);background:var(--surface)}
+[data-app-theme="8bit"] .theme-switch button[aria-pressed=true]{background:#0058f8;color:#fff}
+[data-app-theme="8bit"] .avatar{border:2px solid var(--px-outline);font-family:var(--px-font);font-size:8px}
+[data-app-theme="8bit"] .step i,[data-app-theme="8bit"] .progress-steps i{border-width:2px;border-color:var(--px-outline);font-family:var(--px-font);font-size:8px}
+[data-app-theme="8bit"] .progress-steps .active i{background:var(--px-start);border-color:var(--px-outline)}
+[data-app-theme="8bit"] .pagination .selected{background:#0058f8;color:#fff}
+
+/* ---- Progress bar: blocks filling a framed track, in place of the shooting star -------------------- */
+[data-app-theme="8bit"] .progress-track{height:18px;border:3px solid var(--px-outline);background:var(--track);box-shadow:none}
+[data-app-theme="8bit"] .progress-track>i{inset:2px auto 2px 2px;max-width:calc(100% - 4px);
+    background:repeating-linear-gradient(90deg,var(--px-bar) 0 10px,transparent 10px 13px);box-shadow:none;animation:none;
+    transition:width .9s steps(12)}
+[data-app-theme="8bit"] .progress-track>i::before,[data-app-theme="8bit"] .progress-track>i::after{display:none}
+[data-app-theme="8bit"] .progress-track.slim{height:12px;border-width:2px}
+[data-app-theme="8bit"] .progress-track.slim>i{inset:1px auto 1px 1px;background:repeating-linear-gradient(90deg,var(--px-bar) 0 6px,transparent 6px 8px)}
+[data-app-theme="8bit"] .progress-track.is-done>i{animation:px-blink .25s steps(1) 4}
+
+/* ---- Sign-in and other signed-out pages: the city skyline behind, the dark palette in front ----------- */
+[data-app-theme="8bit"] body.login-page{background:#0b0b1e!important}
+/* The header is a solid console bar; the clock under it and the content each sit in a dialog window, readable
+   whatever the time of day does to the sky. */
+[data-app-theme="8bit"] .login-page header.login-bar{background:#0b0b1e;border-bottom:3px solid #fcfcfc;box-shadow:0 3px 0 #000}
+[data-app-theme="8bit"] .login-page .content-column{margin-left:clamp(0px,59.7vw - 560px,160px);padding:clamp(16px,3vh,30px) clamp(18px,2.4vw,34px);
+    max-width:min(520px,100%);background:#0b0b1ef2;border:3px solid #fcfcfc;
+    box-shadow:inset 0 0 0 3px #0b0b1e,inset 0 0 0 5px #0058f8,6px 6px 0 #000}
+[data-app-theme="8bit"] .console-clock{top:calc(100% + 14px);padding:8px 12px;background:#0b0b1ef2;border:3px solid #fcfcfc;box-shadow:4px 4px 0 #000}
+[data-app-theme="8bit"] .login-page .brand-name{font-size:clamp(11px,2vh,18px)!important;text-shadow:3px 3px 0 #e40058!important;line-height:1.4}
+[data-app-theme="8bit"] .login-page .brand-logo{image-rendering:pixelated;filter:none!important}
+[data-app-theme="8bit"] .login-page>main h1{font-size:clamp(16px,3vh,28px)!important;line-height:1.35!important;text-shadow:4px 4px 0 #e40058}
+[data-app-theme="8bit"] .console-kicker{font-size:clamp(7px,1.1vh,9px)!important;color:#3cbcfc;line-height:1.6}
+[data-app-theme="8bit"] .console-kicker span{color:#fcd000}
+[data-app-theme="8bit"] .console-kicker::after{content:"_";color:#fcfcfc;animation:px-blink 1s steps(1) infinite}
+[data-app-theme="8bit"] .console-clock b{font-size:clamp(13px,2.2vh,20px)!important;text-shadow:3px 3px 0 #0058f8}
+[data-app-theme="8bit"] .console-clock span{font-family:var(--px-body)}
+[data-app-theme="8bit"] .login-page>main label{font-family:var(--px-font);font-size:9px!important;font-weight:400!important;color:#fcd000!important;line-height:1.6}
+[data-app-theme="8bit"] .login-page>main label>input{font-family:var(--px-body);font-size:16px;background:#000!important;color:#fff!important;
+    border:3px solid #fcfcfc!important;box-shadow:4px 4px 0 #0058f8!important}
+[data-app-theme="8bit"] .login-page>main label>input:focus{border-color:#fcd000!important;box-shadow:4px 4px 0 #e40058!important;outline:0!important}
+[data-app-theme="8bit"] .login-page .button{font-size:11px;border-color:#fcfcfc!important;box-shadow:4px 4px 0 #000!important}
+[data-app-theme="8bit"] .login-page .button.primary::before{content:"\25B6";margin-right:-4px;animation:px-blink 1s steps(1) infinite}
+[data-app-theme="8bit"] .login-page>main a[href]{border:2px solid #fcfcfc!important;box-shadow:3px 3px 0 #000;font-family:var(--px-font);font-size:8px;font-weight:400!important}
+[data-app-theme="8bit"] .login-page>main :is(p,div,span){font-family:var(--px-body)}
+[data-app-theme="8bit"] .login-page :is([role=alert],[role=status]){border:2px solid currentColor}
+[data-app-theme="8bit"] .login-page header>span.ml-auto{border:2px solid currentColor!important;font-family:var(--px-body)}
+[data-app-theme="8bit"] .login-page>footer{font-family:var(--px-body);font-size:13px;color:#d8d8f0!important;text-shadow:2px 2px 0 #000}
+
+/* Faint scanlines, like an old screen: over the sign-in page, and the app in dark */
+[data-app-theme="8bit"] body.login-page::after,[data-app-theme="8bit"][data-theme=dark] body:not(.login-page)::after{
+    content:"";position:fixed;inset:0;z-index:999;pointer-events:none;
+    background:repeating-linear-gradient(180deg,#0000001a 0 1px,transparent 1px 3px)}
+
+@media (prefers-reduced-motion:reduce){
+    [data-app-theme="8bit"] *{animation-iteration-count:1!important}
+    [data-app-theme="8bit"] .sidebar nav a.active::after,[data-app-theme="8bit"] .console-kicker::after,
+    [data-app-theme="8bit"] .login-page .button.primary::before,[data-app-theme="8bit"] .live-dot{animation:none!important}
+}
