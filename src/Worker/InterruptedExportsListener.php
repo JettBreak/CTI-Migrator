@@ -10,12 +10,12 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Messenger\Event\WorkerStartedEvent;
 
 /**
- * When the worker starts, marks exports still "Running" as interrupted: a worker that has just started is
- * not running any, so they belong to a worker that stopped mid-export (killed, crashed, or its cache was
+ * When the exports worker starts, marks exports still "Running" as interrupted: an exports worker that has just
+ * started is not running any, so they belong to one that stopped mid-export (killed, crashed, or its cache was
  * rebuilt under it). Without this they would show "Running" until the hourly cleanup, hours later.
  *
- * Relies on one worker taking the queue at a time, as the Background worker switch runs it; the heartbeat
- * (App\Worker\WorkerHeartbeatListener) assumes the same. Their message, if it is handed out again, is then
+ * Relies on one exports worker taking the exports queue at a time, as the Background worker switch runs it; the
+ * heartbeat (App\Worker\WorkerHeartbeatListener) assumes the same. Their message, if it is handed out again, is then
  * ignored: the handler only runs queued exports.
  */
 final class InterruptedExportsListener
@@ -29,8 +29,8 @@ final class InterruptedExportsListener
     #[AsEventListener]
     public function onStarted(WorkerStartedEvent $event): void
     {
-        if (!\in_array('async', $event->getWorker()->getMetadata()->getTransportNames(), true)) {
-            return; // not a worker that runs exports
+        if (WorkerRole::Exports !== WorkerRole::fromTransports($event->getWorker()->getMetadata()->getTransportNames())) {
+            return; // not the worker that runs exports
         }
 
         $jobs = $this->em->getRepository(ExportJob::class)->findBy(['state' => ExportState::Running]);

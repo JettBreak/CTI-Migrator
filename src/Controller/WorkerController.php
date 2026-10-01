@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsCsrfTokenValid;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-/** Monitoring and on/off control of the background worker that prepares exports and runs cleanup. */
+/** Monitoring and on/off control of the background workers: one prepares exports, the other runs batches and cleanup. */
 #[IsGranted('ROLE_MIGRATION_OFFICER')]
 #[Route('/worker')]
 final class WorkerController extends AbstractController
@@ -55,13 +55,13 @@ final class WorkerController extends AbstractController
         if ($request->getPayload()->getBoolean('on')) {
             try {
                 $started = $this->supervisor->start($user);
-                $this->addFlash($started ? 'success' : 'error', $started ? 'Background worker is starting.' : 'The worker is already running.');
+                $this->addFlash($started ? 'success' : 'error', $started ? 'Background workers are starting.' : 'The workers are already running.');
             } catch (\Throwable $e) {
                 $this->addFlash('error', 'The worker could not be started: '.$e->getMessage());
             }
         } else {
             $this->supervisor->stop($user);
-            $this->addFlash('success', 'Background worker will stop after its current job.');
+            $this->addFlash('success', 'Background workers will stop after their current job.');
         }
 
         return $this->redirectToRoute('app_worker', status: Response::HTTP_SEE_OTHER);
@@ -72,7 +72,7 @@ final class WorkerController extends AbstractController
     public function forceStop(): Response
     {
         $this->supervisor->forceStop($this->getUser()->getUserIdentifier());
-        $this->addFlash('success', 'Background worker was killed. An export in progress will be marked interrupted by the next cleanup.');
+        $this->addFlash('success', 'Background workers were killed. An export in progress is marked interrupted when the exports worker starts again.');
 
         return $this->redirectToRoute('app_worker', status: Response::HTTP_SEE_OTHER);
     }

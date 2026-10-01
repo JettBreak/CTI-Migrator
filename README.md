@@ -91,11 +91,13 @@ than PHP's defaults (2 MB / 8 MB) are rejected before the application sees them.
 
 ### 6. Start the background worker
 
-Large batches (validation, replacement, rollback) and exports run in the background worker. Turn it on
-from the **Background worker** page after deploying.
+Large batches (validation, replacement, rollback) and exports run in two background workers, side by
+side, so an export never waits for a long batch: one prepares exports, the other runs batches and the
+hourly maintenance. One switch on the **Background worker** page turns both on and off; turn it on after
+deploying.
 
-**Restart the worker (off, then on) after every deployment.** It loads the code once when it starts,
-so a worker left running keeps using the old version.
+**Restart the workers (off, then on) after every deployment.** They load the code once when they start,
+so workers left running keep using the old version.
 
 ### Servers without internet
 
@@ -120,7 +122,8 @@ so a worker left running keeps using the old version.
   and a different approver approves it. Accounts that changed in core since the replacement are left
   alone and listed in a "Not rolled back" export.
 - Export files are deleted after 7 days (`app.export.retention` in `config/services.yaml`).
-- Logs: `var/log/<env>.log`, and the worker's `var/log/worker.log` / `worker-error.log`.
+- Logs: `var/log/<env>.log`; the batches worker's `var/log/worker.log` / `worker-error.log`, and the
+  exports worker's `var/log/worker-exports.log` / `worker-exports-error.log`.
 
 ## Local development
 

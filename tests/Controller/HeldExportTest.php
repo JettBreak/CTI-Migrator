@@ -79,7 +79,7 @@ final class HeldExportTest extends AppTestCase
         $connection->insert('messenger_messages', [
             'body' => $encoded['body'],
             'headers' => json_encode($encoded['headers'] ?? []),
-            'queue_name' => 'default',
+            'queue_name' => 'exports',
             'created_at' => $utc('-11 minutes'),
             'available_at' => $utc('-11 minutes'),
             'delivered_at' => null === $claimedMinutesAgo ? null : $utc(\sprintf('-%d minutes', $claimedMinutesAgo)),

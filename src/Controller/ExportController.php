@@ -8,6 +8,7 @@ use App\Message\GenerateCardExport;
 use App\Repository\ExportJobRepository;
 use App\Service\CardExport;
 use App\Worker\QueueInspector;
+use App\Worker\WorkerRole;
 use App\Worker\WorkerSupervisor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -58,7 +59,9 @@ final class ExportController extends AbstractController
         $unfinished = $this->jobs->countUnfinished();
 
         return $this->render('export/index.html.twig', [
-            'worker_on' => $worker->isRunning(),
+            'worker_on' => $worker->isRunning(WorkerRole::Exports),
+            // The export the exports worker is preparing: queued ones wait for it, one export at a time.
+            'running_export' => $this->jobs->findRunning(),
             // Queued exports a stopped worker took and never started: job id => when they are retried.
             'held' => $held,
             // Seconds between refreshes while exports are unfinished: every 5, or, when all of them are held
@@ -110,7 +113,7 @@ final class ExportController extends AbstractController
         $this->addFlash('success', null === $estimate
             ? sprintf('Export #%d is being prepared. Download it here when it is ready.', $job->getId())
             : sprintf('Export #%d of about %s cards is being prepared. Download it here when it is ready.', $job->getId(), number_format($estimate)));
-        if (!$worker->isRunning() && ExportState::Queued === $job->getState()) {
+        if (!$worker->isRunning(WorkerRole::Exports) && ExportState::Queued === $job->getState()) {
             $this->addFlash('error', 'The background worker is off, so this export will wait until someone turns it on (Background worker page).');
         }
 

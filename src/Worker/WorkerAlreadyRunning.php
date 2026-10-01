@@ -2,7 +2,10 @@
 
 namespace App\Worker;
 
-/** Starting a worker while another is running (App\Worker\WorkerSupervisor::start()): the app runs one at a time. */
+/**
+ * Starting a worker while another of the same kind is running that the Background worker page does not follow
+ * (App\Worker\WorkerSupervisor::start()): two could each take up the same export or batch.
+ */
 final class WorkerAlreadyRunning extends \RuntimeException
 {
     /** @param list<int> $pids */

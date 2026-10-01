@@ -11,7 +11,7 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Worker;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-/** An export a stopped worker left "Running" is marked interrupted when the next worker starts. */
+/** An export a stopped worker left "Running" is marked interrupted when the next exports worker starts. */
 final class InterruptedExportsListenerTest extends AppTestCase
 {
     public function testExportsLeftRunningAreInterruptedWhenTheWorkerStarts(): void
@@ -23,11 +23,11 @@ final class InterruptedExportsListenerTest extends AppTestCase
         $this->em()->persist($queued);
         $this->em()->flush();
 
-        $this->startWorker(['scheduler_default']);
-        $this->em()->refresh($running);
-        self::assertSame(ExportState::Running, $running->getState(), 'A worker that does not run exports leaves them alone');
-
         $this->startWorker(['async', 'scheduler_default']);
+        $this->em()->refresh($running);
+        self::assertSame(ExportState::Running, $running->getState(), 'The batches worker leaves exports alone');
+
+        $this->startWorker(['exports']);
         $this->em()->refresh($running);
         $this->em()->refresh($queued);
         self::assertSame(ExportState::Failed, $running->getState());

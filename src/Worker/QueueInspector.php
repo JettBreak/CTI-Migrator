@@ -21,9 +21,13 @@ final class QueueInspector
 {
     /** Symfony's redeliver_timeout for the doctrine transport; config/packages/messenger.yaml keeps the default. */
     public const REDELIVER_TIMEOUT = 3600;
-    /** The doctrine transport's defaults (MESSENGER_TRANSPORT_DSN sets neither). */
+    /** The doctrine transport's default table (MESSENGER_TRANSPORT_DSN sets none). */
     private const TABLE = 'messenger_messages';
-    private const QUEUE = 'default';
+    /**
+     * The exports transport's queue (config/packages/messenger.yaml), and the default queue, where exports
+     * requested before exports had their own queue and worker may still be waiting.
+     */
+    private const QUEUES = ['exports', 'default'];
 
     public function __construct(
         private readonly Connection $connection,
@@ -40,8 +44,8 @@ final class QueueInspector
     {
         try {
             $rows = $this->connection->fetchAllAssociative(
-                \sprintf('SELECT body, headers, delivered_at FROM %s WHERE queue_name = ? AND delivered_at IS NOT NULL', self::TABLE),
-                [self::QUEUE],
+                \sprintf('SELECT body, headers, delivered_at FROM %s WHERE queue_name IN (?, ?) AND delivered_at IS NOT NULL', self::TABLE),
+                self::QUEUES,
             );
         } catch (DbalException) {
             return []; // no queue table, e.g. with the synchronous transport of the tests

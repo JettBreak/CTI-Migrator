@@ -3,9 +3,10 @@
 {% block title %}Background worker · Coreware{% endblock %}
 {% block crumb %}Background worker{% endblock %}
 
-{% set hb = worker.heartbeat %}
 {% set on = worker.state in ['running', 'starting'] %}
-{% set tone = {running: 'success', starting: 'warning', stopping: 'warning', stopped: 'danger'}[worker.state] %}
+{% set tone = {running: 'success', starting: 'warning', stopping: 'warning', partial: 'warning', stopped: 'danger'}[worker.state] %}
+{% set state_label = worker.state == 'partial' ? 'Partly running' : worker.state|capitalize %}
+{% set worker_tone = {running: 'success', starting: 'warning', stopping: 'warning', stopped: 'danger'} %}
 
 {% block body %}
 <div hidden data-controller="auto-refresh" data-auto-refresh-interval-value="5"></div>
@@ -13,9 +14,9 @@
     <div>
         <span class="eyebrow">OPERATIONS</span>
         <h1>Background worker</h1>
-        <p>Prepares large exports and runs hourly maintenance. This page refreshes every 5 seconds.</p>
+        <p>Two workers run side by side, so a long batch never holds up an export: one prepares exports, the other runs large batches and the hourly maintenance. One switch turns both on and off. This page refreshes every 5 seconds.</p>
     </div>
-    <span class="tag {{ tone }}" id="worker-state">{{ worker.state|capitalize }}</span>
+    <span class="tag {{ tone }}" id="worker-state">{{ state_label }}</span>
 </section>
 
 <section class="panel pad">
@@ -30,12 +31,12 @@
             <noscript><button class="button outline small" name="on" value="{{ on ? '0' : '1' }}">{{ on ? 'Turn off' : 'Turn on' }}</button></noscript>
         </form>
         {% if worker.state == 'stopping' %}
-            <p class="muted">Finishing its current job{% if hb.current %} ({{ hb.current.message }} since {{ hb.current.since|date('H:i:s') }}){% endif %}, then it stops.</p>
+            <p class="muted">Each worker finishes its current job, then stops.</p>
         {% endif %}
         {% if worker.state == 'stopping' or untracked %}
             <form autocomplete="off" method="post" action="{{ path('app_worker_force_stop') }}" data-controller="confirm" data-action="submit->confirm#ask"
-                  data-confirm-title-value="Force stop the worker?"
-                  data-confirm-message-value="The worker process is killed now. An export in progress is abandoned. A batch in progress keeps the chunks already committed; the chunk it was on is rolled back."
+                  data-confirm-title-value="Force stop the workers?"
+                  data-confirm-message-value="Both worker processes are killed now. An export in progress is abandoned. A batch in progress keeps the chunks already committed; the chunk it was on is rolled back."
                   data-confirm-confirm-label-value="Force stop"
                   data-confirm-tone-value="danger">
                 <input type="hidden" name="_token" value="{{ csrf_token('worker') }}">
@@ -46,33 +47,55 @@
 
     {% if untracked %}
         {# Running but not reporting: usually the worker cannot write its heartbeat to the app cache (var/share). #}
-        <p class="exception"><span>!</span> {{ untracked|length }} worker process{{ untracked|length > 1 ? 'es are' : ' is' }} running that {{ untracked|length > 1 ? 'do' : 'does' }} not report to this page (PID {{ untracked|join(', ') }}). Usually the worker cannot write to the app cache: check that var/share exists and belongs to the user the web server and the worker run as. Force stop, fix that, then turn the worker on. Only one worker should run at a time.</p>
-    {% elseif worker.crashed %}
-        <p class="exception"><span>!</span> The worker stopped unexpectedly (it was not switched off). Check the log below, then turn it on again.</p>
-    {% elseif worker.unresponsive %}
-        <p class="exception"><span>!</span> No heartbeat for over a minute although the process exists. It may be stuck; use the switch to restart it.</p>
-    {% elseif worker.state == 'stopped' and queued > 0 %}
-        <p class="exception"><span>!</span> {{ queued }} export(s) are waiting. They start as soon as the worker is on.</p>
+        <p class="exception"><span>!</span> {{ untracked|length }} worker process{{ untracked|length > 1 ? 'es are' : ' is' }} running that {{ untracked|length > 1 ? 'do' : 'does' }} not report to this page (PID {{ untracked|keys|join(', ') }}). Usually the worker cannot write to the app cache: check that var/share exists and belongs to the user the web server and the worker run as. Force stop, fix that, then turn the workers on. Only one worker of each kind should run at a time.</p>
+    {% endif %}
+    {% for w in worker.workers %}
+        {% if w.crashed %}
+            <p class="exception"><span>!</span> The {{ w.role.label|lower }} worker stopped unexpectedly (it was not switched off). Check its log below, then turn the switch on to start it again.</p>
+        {% elseif w.unresponsive %}
+            <p class="exception"><span>!</span> The {{ w.role.label|lower }} worker has sent no heartbeat for over a minute although its process exists. It may be stuck; use the switch to restart the workers.</p>
+        {% endif %}
+    {% endfor %}
+    {% if worker.state == 'partial' and worker.workers|filter(w => w.crashed)|length == 0 %}
+        <p class="exception"><span>!</span> Only one of the two workers is running. Turn the switch on to start the other.</p>
+    {% endif %}
+    {% if worker.workers.exports.state not in ['running', 'starting'] and queued > 0 %}
+        <p class="exception"><span>!</span> {{ queued }} export(s) are waiting. They start as soon as the exports worker is on.</p>
     {% endif %}
     {% for id, retry_at in held %}
         <p class="exception notice"><span>i</span> Export #{{ id }} was taken by a worker that stopped before starting it. The queue hands it out again at {{ retry_at|date('H:i') }}{{ retry_at|date('Y-m-d') != 'now'|date('Y-m-d') ? ' on ' ~ retry_at|date('M j') }}, and the worker then prepares it. To get the file sooner, request the export again.</p>
     {% endfor %}
 
+    <div class="table-wrap">
+        <table class="worker-table">
+            <thead><tr><th>Worker</th><th>State</th><th>Process</th><th>Running since</th><th>Last heartbeat</th><th>Now doing</th><th>Jobs handled</th><th>Last job</th></tr></thead>
+            <tbody>
+            {% for w in worker.workers %}
+                {% set hb = w.heartbeat %}
+                <tr id="worker-{{ w.role.value }}">
+                    <td><b>{{ w.role.label }}</b></td>
+                    <td><span class="tag {{ worker_tone[w.state] }}">{{ w.state|capitalize }}</span></td>
+                    <td>{{ w.pid ? 'PID ' ~ w.pid : '—' }}</td>
+                    <td>{{ w.state in ['running', 'stopping'] and hb ? hb.startedAt|date('M j, H:i:s') : '—' }}</td>
+                    <td>{{ hb ? hb.beatAt|date('M j, H:i:s') : '—' }}</td>
+                    <td>{{ hb and hb.current ? hb.current.message ~ ' (since ' ~ hb.current.since|date('H:i:s') ~ ')' : (w.state == 'running' ? 'Idle' : '—') }}</td>
+                    <td>{{ hb ? hb.handled : 0 }}{% if hb and hb.failed %} · <span class="text-red-700 dark:text-red-400">{{ hb.failed }} failed</span>{% endif %}</td>
+                    <td>{{ hb and hb.last ? hb.last.message ~ ' at ' ~ hb.last.at|date('M j, H:i:s') : '—' }}</td>
+                </tr>
+                {% if hb and hb.lastError %}<tr><td></td><td colspan="7" class="muted">Last error ({{ hb.lastError.at|date('M j, H:i:s') }}): {{ hb.lastError.message }}</td></tr>{% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
     <dl class="facts">
-        <div><dt>Process</dt><dd>{{ worker.pid ? 'PID ' ~ worker.pid : '—' }}</dd></div>
-        <div><dt>Running since</dt><dd>{{ worker.state in ['running', 'stopping'] and hb ? hb.startedAt|date('M j, H:i:s') : '—' }}</dd></div>
-        <div><dt>Last heartbeat</dt><dd>{{ hb ? hb.beatAt|date('M j, H:i:s') : '—' }}</dd></div>
-        <div><dt>Now doing</dt><dd>{{ hb and hb.current ? hb.current.message ~ ' (since ' ~ hb.current.since|date('H:i:s') ~ ')' : (worker.state == 'running' ? 'Idle' : '—') }}</dd></div>
-        <div><dt>Jobs handled</dt><dd>{{ hb ? hb.handled : 0 }}{% if hb and hb.failed %} · <span class="text-red-700 dark:text-red-400">{{ hb.failed }} failed</span>{% endif %}</dd></div>
-        <div><dt>Last job</dt><dd>{{ hb and hb.last ? hb.last.message ~ ' at ' ~ hb.last.at|date('M j, H:i:s') : '—' }}</dd></div>
-        <div><dt>Queue</dt><dd>{{ queued }} export(s) waiting · {{ running }} running{% if held %}<small class="block muted">{{ held|length }} held by a stopped worker, retried at {{ held|map(t => t|date('H:i'))|join(', ') }}</small>{% endif %}</dd></div>
+        <div><dt>Export queue</dt><dd>{{ queued }} export(s) waiting · {{ running }} running{% if held %}<small class="block muted">{{ held|length }} held by a stopped worker, retried at {{ held|map(t => t|date('H:i'))|join(', ') }}</small>{% endif %}</dd></div>
         <div><dt>Last switched</dt><dd>
             {% if worker.stop and (not worker.launch or worker.stop.at > worker.launch.at) %}off by {{ worker.stop.by }} at {{ worker.stop.at|date('M j, H:i') }}
             {% elseif worker.launch %}on by {{ worker.launch.by }} at {{ worker.launch.at|date('M j, H:i') }}
             {% else %}—{% endif %}
         </dd></div>
     </dl>
-    {% if hb and hb.lastError %}<p class="muted">Last error ({{ hb.lastError.at|date('M j, H:i:s') }}): {{ hb.lastError.message }}</p>{% endif %}
 </section>
 
 <section class="panel pad">

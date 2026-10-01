@@ -9,8 +9,10 @@ use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Messenger\EventListener\StopWorkerOnRestartSignalListener;
 
 /**
- * Web-side control of the background worker: works out its state from the heartbeat and the
- * process table, starts it, and stops it (gracefully, or forcibly as a last resort).
+ * Web-side control of the background workers, one per App\Worker\WorkerRole (exports; batches and maintenance), run
+ * side by side so a long batch never holds up an export. Works out each one's state from its heartbeat and the
+ * process table, and starts and stops them together with the one switch on the Background worker page (gracefully,
+ * or forcibly as a last resort).
  */
 final class WorkerSupervisor
 {
@@ -18,8 +20,9 @@ final class WorkerSupervisor
     public const STARTING = 'starting';
     public const STOPPING = 'stopping';
     public const STOPPED = 'stopped';
+    /** Overall only: one worker is up and the other is stopped (e.g. it crashed). Turning the switch on starts it. */
+    public const PARTIAL = 'partial';
 
-    private const LAUNCH_KEY = 'worker.launch';
     private const STOP_KEY = 'worker.stop';
     /** How long a freshly launched process may take to report its first heartbeat. */
     private const START_GRACE = 30;
@@ -37,13 +40,41 @@ final class WorkerSupervisor
     }
 
     /**
-     * @return array{state: string, pid: ?int, heartbeat: ?array<string, mixed>, launch: ?array<string, mixed>, stop: ?array<string, mixed>, unresponsive: bool, crashed: bool}
+     * Both workers, and their overall state for the switch: running or stopped when both are, stopping while
+     * either is, starting while one is and the other is up, and partial when one is up and the other stopped.
+     *
+     * @return array{state: string, workers: array<string, array<string, mixed>>, launch: ?array<string, mixed>, stop: ?array<string, mixed>}
      */
     public function status(): array
     {
-        $heartbeat = $this->get(WorkerHeartbeatListener::KEY);
-        $launch = $this->get(self::LAUNCH_KEY);
         $stop = $this->get(self::STOP_KEY);
+        $workers = [];
+        foreach (WorkerRole::cases() as $role) {
+            $workers[$role->value] = $this->workerStatus($role, $stop);
+        }
+        $states = array_column($workers, 'state');
+        $state = match (true) {
+            \in_array(self::STOPPING, $states, true) => self::STOPPING,
+            [self::RUNNING] === array_unique($states) => self::RUNNING,
+            [self::STOPPED] === array_unique($states) => self::STOPPED,
+            !\in_array(self::STOPPED, $states, true) => self::STARTING,
+            default => self::PARTIAL,
+        };
+        $launches = array_filter(array_column($workers, 'launch'));
+        usort($launches, static fn (array $a, array $b) => $b['at'] <=> $a['at']);
+
+        return ['state' => $state, 'workers' => $workers, 'launch' => $launches[0] ?? null, 'stop' => $stop];
+    }
+
+    /**
+     * @param array<string, mixed>|null $stop the last stop request
+     *
+     * @return array{role: WorkerRole, state: string, pid: ?int, heartbeat: ?array<string, mixed>, launch: ?array<string, mixed>, unresponsive: bool, crashed: bool}
+     */
+    private function workerStatus(WorkerRole $role, ?array $stop): array
+    {
+        $heartbeat = $this->get($role->heartbeatKey());
+        $launch = $this->get($role->launchKey());
         $now = time();
 
         $heartbeatAlive = null !== $heartbeat && null === $heartbeat['stoppedAt'] && $this->launcher->isAlive($heartbeat['pid']);
@@ -62,45 +93,47 @@ final class WorkerSupervisor
         }
 
         return [
+            'role' => $role,
             'state' => $state,
             'pid' => $pid,
             'heartbeat' => $heartbeat,
             'launch' => $launch,
-            'stop' => $stop,
-            // Busy with a long export: no beats until it finishes, which is expected.
+            // Busy with a long export or batch: no beats until it finishes, which is expected.
             'unresponsive' => self::RUNNING === $state && null === $heartbeat['current'] && $now - $heartbeat['beatAt']->getTimestamp() > self::UNRESPONSIVE_AFTER,
             // It had been running, was never told to stop, and the process is gone.
             'crashed' => self::STOPPED === $state && null !== $heartbeat && null === $heartbeat['stoppedAt'] && !$launchIsNewer,
         ];
     }
 
-    public function isRunning(): bool
+    /** Whether the worker for $role is running or starting: what waits for it gets done. */
+    public function isRunning(WorkerRole $role): bool
     {
-        return \in_array($this->status()['state'], [self::RUNNING, self::STARTING], true);
+        return \in_array($this->workerStatus($role, $this->get(self::STOP_KEY))['state'], [self::RUNNING, self::STARTING], true);
     }
 
     /**
-     * Worker processes of this app that are running but are not the one this page follows: started elsewhere, or
+     * Worker processes of this app that are running but are not ones this page follows: started elsewhere, or
      * started here but unable to write their heartbeat (e.g. the app cache directory is not writable), so they
      * look stopped. Lists the process table: meant for the Background worker page, not every page.
      *
      * @param array<string, mixed>|null $status status(), if already at hand
      *
-     * @return list<int>
+     * @return array<int, WorkerRole> pid => what it runs
      */
     public function untracked(?array $status = null): array
     {
-        $status ??= $this->status();
-        $tracked = self::STOPPED === $status['state'] ? null : $status['pid'];
+        $tracked = $this->trackedPids($status ?? $this->status());
 
-        return array_values(array_filter($this->launcher->runningWorkers(), static fn (int $pid) => $pid !== $tracked));
+        return array_filter($this->launcher->runningWorkers(), static fn (int $pid) => !\in_array($pid, $tracked, true), \ARRAY_FILTER_USE_KEY);
     }
 
     /**
-     * @return bool false if it was already running or starting
+     * Starts each worker that is stopped.
      *
-     * @throws WorkerAlreadyRunning when a worker this page does not follow is running: the app runs one at a time,
-     *                              and two could each take up the same export or batch
+     * @return bool false if both were already running or starting
+     *
+     * @throws WorkerAlreadyRunning when a worker this page does not follow is running in the place of one to start:
+     *                              two could each take up the same export or batch
      */
     public function start(string $by): bool
     {
@@ -110,15 +143,22 @@ final class WorkerSupervisor
         }
         try {
             $status = $this->status();
-            if (self::STOPPED !== $status['state']) {
+            $toStart = array_values(array_map(
+                static fn (array $worker) => $worker['role'],
+                array_filter($status['workers'], static fn (array $worker) => self::STOPPED === $worker['state']),
+            ));
+            if ([] === $toStart) {
                 return false;
             }
-            if ([] !== $running = $this->launcher->runningWorkers()) {
-                throw new WorkerAlreadyRunning($running);
+            $blocking = array_keys(array_filter($this->untracked($status), static fn (WorkerRole $role) => \in_array($role, $toStart, true)));
+            if ([] !== $blocking) {
+                throw new WorkerAlreadyRunning($blocking);
             }
-            $pid = $this->launcher->launch();
-            $this->set(self::LAUNCH_KEY, ['pid' => $pid, 'at' => new \DateTimeImmutable(), 'by' => $by]);
-            $this->logger->notice('Background worker started by {by} (pid {pid})', ['by' => $by, 'pid' => $pid]);
+            foreach ($toStart as $role) {
+                $pid = $this->launcher->launch($role);
+                $this->set($role->launchKey(), ['pid' => $pid, 'at' => new \DateTimeImmutable(), 'by' => $by]);
+                $this->logger->notice('Background worker ({role}) started by {by} (pid {pid})', ['role' => $role->value, 'by' => $by, 'pid' => $pid]);
+            }
 
             return true;
         } finally {
@@ -126,53 +166,70 @@ final class WorkerSupervisor
         }
     }
 
-    /** Asks the worker to exit after the message it is handling (an export in progress finishes first). */
+    /** Asks both workers to exit after the message each is handling (an export or batch in progress finishes first). */
     public function stop(string $by): void
     {
         $now = new \DateTimeImmutable();
         $this->restartSignal->save($this->restartSignal->getItem(StopWorkerOnRestartSignalListener::RESTART_REQUESTED_TIMESTAMP_KEY)->set(microtime(true)));
         $this->set(self::STOP_KEY, ['at' => $now, 'by' => $by]);
-        $this->logger->notice('Background worker stop requested by {by}', ['by' => $by]);
+        $this->logger->notice('Background workers stop requested by {by}', ['by' => $by]);
     }
 
     /**
-     * Kills the process outright, e.g. when a graceful stop hangs, and any other worker of this app that is running
+     * Kills both workers outright, e.g. when a graceful stop hangs, and any other worker of this app that is running
      * (see untracked()). An export in progress is lost.
      */
     public function forceStop(string $by): void
     {
         $status = $this->status();
-        $pids = array_values(array_unique(array_filter([$status['pid'], ...$this->launcher->runningWorkers()])));
+        $pids = array_values(array_unique([...$this->trackedPids($status), ...array_keys($this->launcher->runningWorkers())]));
         foreach ($pids as $pid) {
             $this->launcher->kill($pid);
         }
-        $heartbeat = $status['heartbeat'];
-        if (null !== $heartbeat) {
-            $heartbeat['stoppedAt'] = new \DateTimeImmutable();
-            $heartbeat['current'] = null;
-            $this->set(WorkerHeartbeatListener::KEY, $heartbeat);
+        foreach ($status['workers'] as $worker) {
+            $heartbeat = $worker['heartbeat'];
+            if (null !== $heartbeat) {
+                $heartbeat['stoppedAt'] = new \DateTimeImmutable();
+                $heartbeat['current'] = null;
+                $this->set($worker['role']->heartbeatKey(), $heartbeat);
+            }
         }
         $this->set(self::STOP_KEY, ['at' => new \DateTimeImmutable(), 'by' => $by.' (forced)']);
-        $this->logger->warning('Background worker force-stopped by {by} (pid {pids})', ['by' => $by, 'pids' => implode(', ', $pids) ?: 'none']);
+        $this->logger->warning('Background workers force-stopped by {by} (pid {pids})', ['by' => $by, 'pids' => implode(', ', $pids) ?: 'none']);
     }
 
     /** @return array<string, list<string>> log file name => its last $lines non-empty lines, oldest first */
     public function logTail(int $lines = 30): array
     {
         $tails = [];
-        foreach (['worker.log', 'worker-error.log'] as $file) {
-            $path = $this->logsDir.'/'.$file;
-            if (!is_file($path) || 0 === filesize($path)) {
-                continue;
+        foreach (WorkerRole::cases() as $role) {
+            foreach ([$role->logName().'.log', $role->logName().'-error.log'] as $file) {
+                $path = $this->logsDir.'/'.$file;
+                if (!is_file($path) || 0 === filesize($path)) {
+                    continue;
+                }
+                $handle = fopen($path, 'r');
+                fseek($handle, max(0, filesize($path) - 32768)); // only the end of a possibly large log
+                $content = (string) stream_get_contents($handle);
+                fclose($handle);
+                $tails[$file] = \array_slice(array_values(array_filter(preg_split('/\R/', $content), static fn (string $l) => '' !== trim($l))), -$lines);
             }
-            $handle = fopen($path, 'r');
-            fseek($handle, max(0, filesize($path) - 32768)); // only the end of a possibly large log
-            $content = (string) stream_get_contents($handle);
-            fclose($handle);
-            $tails[$file] = \array_slice(array_values(array_filter(preg_split('/\R/', $content), static fn (string $l) => '' !== trim($l))), -$lines);
         }
 
         return $tails;
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     *
+     * @return list<int> the processes of the workers this page follows that are not stopped
+     */
+    private function trackedPids(array $status): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (array $worker) => self::STOPPED === $worker['state'] ? null : $worker['pid'],
+            $status['workers'],
+        )));
     }
 
     /** @return array<string, mixed>|null */

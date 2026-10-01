@@ -101,6 +101,34 @@ final class ExportControllerTest extends AppTestCase
         self::assertSelectorNotExists(sprintf('a[href="/exports/%d/download"]', $job->getId()));
     }
 
+    public function testAQueuedExportSaysWhatItIsWaitingFor(): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $queued = new ExportJob('officer', null, 100);
+        $em->persist($queued);
+        $em->flush();
+
+        // The exports worker is off.
+        $this->client->request('GET', '/exports');
+        self::assertSelectorTextContains('tbody .export-wait', 'Waiting for the background worker to be turned on');
+
+        // On, and free: it starts any moment.
+        $this->client->request('GET', '/worker');
+        $token = $this->client->getCrawler()->filter('input[name="_token"]')->first()->attr('value');
+        $this->client->request('POST', '/worker/switch', ['_token' => $token, 'on' => '1']);
+        $this->client->request('GET', '/exports');
+        self::assertSelectorTextContains('tbody .export-wait', 'Starting shortly');
+
+        // On, and preparing another export: exports run one at a time on their own worker, never behind a batch.
+        $running = new ExportJob('officer', null, 100);
+        $running->start();
+        $em->persist($running);
+        $em->flush();
+        $this->client->request('GET', '/exports');
+        self::assertSelectorCount(1, 'tbody .export-wait');
+        self::assertSelectorTextContains('tbody .export-wait', \sprintf('Waiting for export #%d to finish', $running->getId()));
+    }
+
     public function testExportButtonsAreDisabledWhileAnExportIsRunning(): void
     {
         foreach (['/', '/cards', '/migration', '/exports'] as $page) {

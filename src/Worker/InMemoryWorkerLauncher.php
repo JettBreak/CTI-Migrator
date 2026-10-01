@@ -12,12 +12,15 @@ final class InMemoryWorkerLauncher implements WorkerLauncher
 {
     /** @var array<int, bool> pid => alive */
     public array $processes = [];
+    /** @var array<int, WorkerRole> pid => what it runs; one a test adds to $processes without a role runs batches */
+    public array $roles = [];
     private int $nextPid = 4242;
 
-    public function launch(): int
+    public function launch(WorkerRole $role): int
     {
         $pid = $this->nextPid++;
         $this->processes[$pid] = true;
+        $this->roles[$pid] = $role;
 
         return $pid;
     }
@@ -35,6 +38,11 @@ final class InMemoryWorkerLauncher implements WorkerLauncher
     /** Launched ones, and any a test adds to $processes as started elsewhere. */
     public function runningWorkers(): array
     {
-        return array_keys(array_filter($this->processes));
+        $running = [];
+        foreach (array_keys(array_filter($this->processes)) as $pid) {
+            $running[$pid] = $this->roles[$pid] ?? WorkerRole::Batches;
+        }
+
+        return $running;
     }
 }

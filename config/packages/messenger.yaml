@@ -8,14 +8,21 @@ framework:
 
         transports:
             # Queue table lives in the app database (see MESSENGER_TRANSPORT_DSN); created by a migration.
+            # Two queues, each with its own worker (App\Worker\WorkerRole), so a long batch never holds up an export.
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 0 # a batch reports its own failure; re-running it is a user decision
+            exports:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: exports
                 retry_strategy:
                     max_retries: 0 # an export marks itself failed; re-running it is a user decision
             sync: 'sync://'
 
         routing:
-            App\Message\GenerateCardExport: async
+            App\Message\GenerateCardExport: exports
             App\Message\ProcessBatch: async
 
 when@test:
@@ -24,3 +31,4 @@ when@test:
             transports:
                 # Run queued work inline so functional tests see the result.
                 async: 'sync://'
+                exports: 'sync://'

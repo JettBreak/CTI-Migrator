@@ -5,9 +5,9 @@ in core banking, with maker-checker approval. It consists of:
 
 - **The web application** (`public/index.php`), used by migration officers (makers), migration
   approvers (checkers) and user administrators.
-- **A background worker** (`messenger:consume`), switched on and off from the *Background worker*
-  page. It validates and applies large batches, prepares large exports, and runs hourly
-  maintenance.
+- **Two background workers** (`messenger:consume`), switched on and off together from the
+  *Background worker* page: one prepares large exports, the other validates and applies large
+  batches and runs hourly maintenance. Running side by side, an export never waits for a batch.
 - **Three MySQL databases:**
 
 | Connection | Env variable | Default name | Access |
@@ -358,24 +358,28 @@ php bin/console app:user:account enable <username>
 ## 10. Start the background worker
 
 Sign in as a migration officer or approver, open **Background worker**, and switch it **on**. It
-runs `bin/console messenger:consume async scheduler_default` as a detached process and writes to
-`var/log/worker.log` and `var/log/worker-error.log`.
+starts two detached processes:
 
-While it is on, it:
+| Worker | Command | Logs | Does |
+|---|---|---|---|
+| Exports | `bin/console messenger:consume exports` | `var/log/worker-exports.log`, `worker-exports-error.log` | generates exports larger than `app.export.sync_max_rows`, one at a time |
+| Batches | `bin/console messenger:consume async scheduler_default` | `var/log/worker.log`, `worker-error.log` | validates and applies batches larger than `app.batch.sync_max_rows` (5,000 rows), and runs the hourly maintenance: deleting expired export files and disabling dormant accounts |
 
-- validates and applies batches larger than `app.batch.sync_max_rows` (5,000 rows);
-- generates exports larger than `app.export.sync_max_rows`;
-- runs the hourly maintenance: deleting expired export files and disabling dormant accounts.
+They run side by side so an export never waits for a long batch.
 
-After a server restart the worker is off. Switch it on again from the page. To keep it running
-under a process manager instead (systemd, NSSM or Supervisor), run the same command as the web
-server user from the project directory:
+After a server restart the workers are off. Switch them on again from the page. To keep them running
+under a process manager instead (systemd, NSSM or Supervisor), run both commands as the web server
+user from the project directory, each as its own service:
+
+```bash
+php bin/console messenger:consume exports --sleep=1 -vv
+```
 
 ```bash
 php bin/console messenger:consume async scheduler_default --sleep=1 -vv
 ```
 
-If you do this, don't also switch it on from the page.
+If you do this, don't also switch them on from the page. Run one of each, never two of the same.
 
 ---
 
@@ -387,7 +391,7 @@ If you do this, don't also switch it on from the page.
 - [ ] Both administrators can sign in, change their temporary password, and see *Users*.
 - [ ] An officer created and approved on the *Users* page can sign in and see the *Overview* and
       the *Card directory* (this proves the core connections).
-- [ ] The *Background worker* page reports **Running** after switching it on.
+- [ ] The *Background worker* page reports **Running**, with both workers running, after switching it on.
 - [ ] *Account audit trail* shows the sign-ins above.
 
 ---

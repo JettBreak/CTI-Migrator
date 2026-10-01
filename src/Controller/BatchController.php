@@ -15,6 +15,7 @@ use App\Repository\MigrationRowRepository;
 use App\Security\BatchVoter;
 use App\Service\BatchRowPurger;
 use App\Service\CsvResponseFactory;
+use App\Worker\WorkerRole;
 use App\Worker\WorkerSupervisor;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -101,7 +102,7 @@ final class BatchController extends AbstractController
             // Finished replacing or rolling back moments ago: the progress bar stays up for the rest of
             // SHOW_FINISHED seconds (the page's last auto-refresh lands in them), then leaves by itself.
             'just_finished_for' => $this->secondsLeftToShow($batch),
-            'waiting_for_worker' => $busy && !$this->worker->isRunning(),
+            'waiting_for_worker' => $busy && !$this->worker->isRunning(WorkerRole::Batches),
             'audit' => $audit->findForBatch($batch),
         ]);
     }

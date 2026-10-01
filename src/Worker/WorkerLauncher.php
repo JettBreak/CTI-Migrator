@@ -7,8 +7,8 @@ namespace App\Worker;
  */
 interface WorkerLauncher
 {
-    /** Starts a detached worker that outlives the web request, and returns its PID. */
-    public function launch(): int;
+    /** Starts a detached worker for $role that outlives the web request, and returns its PID. */
+    public function launch(WorkerRole $role): int;
 
     public function isAlive(int $pid): bool;
 
@@ -16,10 +16,10 @@ interface WorkerLauncher
     public function kill(int $pid): void;
 
     /**
-     * PIDs of this app's worker processes that are running, however they were started (this page, a process
-     * manager, a terminal): one per worker, as launch() reports it, not every process in its chain.
+     * This app's worker processes that are running, however they were started (this page, a process manager, a
+     * terminal): one per worker, as launch() reports it, not every process in its chain.
      *
-     * @return list<int>
+     * @return array<int, WorkerRole> pid => what it runs
      */
     public function runningWorkers(): array;
 }
