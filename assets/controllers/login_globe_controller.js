@@ -300,11 +300,51 @@ export default class extends Controller {
         }
         this.stepZoom(now);
         if (this.zoom > 0.001) {
-            this.drawSolarSystem(now);
+            this.drawBesideContent(() => this.drawSolarSystem(now));
             return;
         }
         this.turnFrom = undefined; // back on the Earth: the next zoom out takes its turn afresh
         this.drawEarthAndMoon(now);
+    }
+
+    /**
+     * Runs $paint on an offscreen layer, then copies it on screen faded to translucent over the heading and
+     * the form: while zooming, the orbits are wider than the free space and the Sun and planets pass behind
+     * the content, where they should show through faintly rather than over the text.
+     */
+    drawBesideContent(paint) {
+        const main = this.ctx;
+        const ratio = window.devicePixelRatio || 1;
+        const canvas = this.layerCanvas ??= document.createElement('canvas');
+        if (canvas.width !== this.element.width || canvas.height !== this.element.height) {
+            canvas.width = this.element.width;
+            canvas.height = this.element.height;
+        }
+        const layer = canvas.getContext('2d');
+        layer.setTransform(ratio, 0, 0, ratio, 0, 0);
+        layer.clearRect(0, 0, this.width, this.height);
+
+        this.ctx = layer;
+        this.path.context(layer);
+        try {
+            paint();
+        } finally {
+            this.ctx = main;
+            this.path.context(main);
+        }
+
+        // Keep 25% of the layer over the content, easing up to all of it just beyond the content's right edge.
+        const edge = this.lastContentRight ?? this.width * 0.35;
+        const mask = layer.createLinearGradient(edge, 0, edge + 80, 0);
+        mask.addColorStop(0, 'rgba(0,0,0,.25)');
+        mask.addColorStop(1, 'rgba(0,0,0,1)');
+        layer.save();
+        layer.globalCompositeOperation = 'destination-in';
+        layer.fillStyle = mask;
+        layer.fillRect(0, 0, this.width, this.height);
+        layer.restore();
+
+        main.drawImage(canvas, 0, 0, this.width, this.height);
     }
 
     /** The globe with the moon going round it; on the far side the moon passes behind the globe. */
@@ -387,13 +427,9 @@ export default class extends Controller {
         const camera = { x: earth.x * (1 - follow), y: earth.y * (1 - follow) };
         const toScreen = (p) => ({ x: anchor.x + (p.x - camera.x) * scale, y: anchor.y + (p.y - camera.y) * scale });
         const reveal = clamp((z - 0.12) / 0.4); // the rest of the solar system fades in
-        // While zooming, the outer orbits are wider than the free space: keep them (and the planets on
-        // them) out from behind the form.
-        const clipToFreeSpace = () => { ctx.beginPath(); ctx.rect(contentRight + 32, 0, this.width, this.height); ctx.clip(); };
 
         if (reveal > 0) {
             ctx.save();
-            clipToFreeSpace();
             ctx.setLineDash([3, 6]);
             ctx.lineWidth = 1;
             ctx.strokeStyle = `rgba(156,198,255,${0.22 * reveal})`;
@@ -412,7 +448,6 @@ export default class extends Controller {
         const drawPlanets = (far) => {
             if (reveal <= 0) return;
             ctx.save();
-            clipToFreeSpace();
             ctx.globalAlpha = reveal;
             for (const p of others.filter((o) => o.far === far)) {
                 this.drawPlanet(p.planet, toScreen(p), Math.min(80, Math.max(1.8, p.planet.size * scale)));
