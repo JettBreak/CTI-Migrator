@@ -1,0 +1,26 @@
+{# The colour field on the right of the corporate theme's sign-in page (templates/_signed_out_layout.html.twig, "plain"
+   scenery): an example batch (masked accounts moving from old to new), a second officer's approval, and the line
+   that sums the app up. Illustration only, marked as an example so it is never taken for a real batch; styled in
+   theme-corporate.css. #}
+<aside class="signin-showcase" aria-hidden="true">
+    <div class="showcase-stage">
+        <div class="showcase-batch">
+            <div class="showcase-batch-head"><b>Example batch</b><span class="showcase-pill">Processing</span></div>
+            <div class="showcase-bar"><i></i></div>
+            <span class="showcase-note">Accounts replaced so far · 72%</span>
+            <div class="showcase-rows">
+                <div><span>001-••••3450</span><em>→</em><span>009-••••1448</span><strong>Done</strong></div>
+                <div><span>001-••••8102</span><em>→</em><span>009-••••1449</span><strong>Done</strong></div>
+                <div><span>001-••••8921</span><em>→</em><span>009-••••1450</span><strong class="is-running">Running</strong></div>
+            </div>
+        </div>
+        <div class="showcase-chip">
+            <span class="showcase-tick"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
+            <span><b>Approved by a second officer</b><small>Dual control on every change</small></span>
+        </div>
+    </div>
+    <div class="showcase-copy">
+        <h2>Every change approved, verified and on the record.</h2>
+        <p>Dual control, checks against live core data, and a complete audit trail for each replacement and rollback.</p>
+    </div>
+</aside>

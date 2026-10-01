@@ -50,33 +50,45 @@
             <a href="{{ path('app_system_unlock') }}" class="button primary w-full h-12" style="margin:8px 0 0">Unlock</a>
         </div>
         {% else %}
+        {# Corporate: its own wording (a welcome and an eyebrow, the help and Lockout in one line), an icon in each
+           field and a show-password toggle; theme-corporate.css lays it out. #}
+        {% set corporate = app_theme().scenery == 'plain' %}
+        {% if corporate %}
+        <p class="signin-eyebrow">Core account migration</p>
+        <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Welcome back</h1>
+        {% else %}
         <div class="console-kicker" aria-hidden="true">&gt; CORE ACCOUNT MIGRATION <span>// CONSOLE</span></div>
         <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>data migration</h1>
+        {% endif %}
         <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation rocket-swipe" data-action="field-validation#validate page-loader#show rocket-swipe#depart" data-rocket-swipe-to-param="app">
-            <div class="text-sm" style="color:#87a4d4">Use your operations account.</div>
+            <div class="text-sm" style="color:#87a4d4">{{ corporate ? 'Sign in with your operations account.' : 'Use your operations account.' }}</div>
             {% if error %}
                 <p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error }}</p>
             {% elseif expired %}
                 <p class="text-sm rounded-md px-3 py-2" role="status" style="background:#12305e;color:#cfe0ff">Your session ended for security. Sign in again to continue.</p>
             {% endif %}
-            {# Corporate: an icon in each field and a show-password toggle (theme-corporate.css places them). #}
-            {% set field_icons = app_theme().scenery == 'plain' %}
             <label class="block text-sm font-semibold" style="color:#dbe7ff">Username
-                {% if field_icons %}<svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>{% endif %}
+                {% if corporate %}<svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>{% endif %}
                 <input type="text" name="_username" value="{{ last_username }}" autocomplete="off" maxlength="180" required autofocus class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
             </label>
-            <label class="block text-sm font-semibold pb-2" style="color:#dbe7ff"{% if field_icons %} data-controller="password-reveal"{% endif %}>Password
-                {% if field_icons %}<svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <label class="block text-sm font-semibold pb-2" style="color:#dbe7ff"{% if corporate %} data-controller="password-reveal"{% endif %}>Password
+                {% if corporate %}<svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
                 <button type="button" class="field-reveal" data-password-reveal-target="button" data-action="password-reveal#toggle" aria-pressed="false" aria-label="Show password" title="Show or hide the password">
                     <svg class="eye-open" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
                     <svg class="eye-closed" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.4A9.5 9.5 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1"/></svg>
                 </button>{% endif %}
-                <input type="password" name="_password" autocomplete="off" maxlength="4096" required{% if field_icons %} data-password-reveal-target="input"{% endif %} class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
+                <input type="password" name="_password" autocomplete="off" maxlength="4096" required{% if corporate %} data-password-reveal-target="input"{% endif %} class="mt-1.5 w-full rounded-md border border-[#2d4770] bg-[#0b1a36]/80 text-white px-3 py-2.5 font-normal focus:outline-none focus:border-[#5c9bff] focus:ring-2 focus:ring-[#5c9bff]/30">
             </label>
             <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
             <button type="submit" class="button primary w-full h-12" style="margin:8px 0 0">Sign in</button>
+            {% if corporate %}
+            <p class="signin-help">Forgot your password or locked out? Contact your user administrator, or open <a href="{{ path('app_system_lock') }}" data-turbo="false">Lockout</a>.</p>
+            {% if status.scheduled %}<p class="lock-countdown">Access ends on {{ status.locksAt|date('M j, Y') }} · {{ status.daysLeft }} day{{ status.daysLeft == 1 ? '' : 's' }} left</p>{% endif %}
+            {% else %}
             <span class="block text-xs mt-2" style="color:#8ea7cf">Forgot your password or locked out? Contact your user administrator.</span>
+            {% endif %}
         </form>
+        {% if not corporate %}
         <div class="w-full max-w-sm mt-5 pt-4 flex items-center gap-3 border-t text-xs" style="border-color:#24436f;color:#8ea7cf">
             {% if status.scheduled %}
                 <span class="lock-countdown" style="color:#f5c98a">Access ends on {{ status.locksAt|date('M j, Y') }} · {{ status.daysLeft }} day{{ status.daysLeft == 1 ? '' : 's' }} left</span>
@@ -86,6 +98,7 @@
                 Lockout
             </a>
         </div>
+        {% endif %}
         {% endif %}
     </div>
 </main>

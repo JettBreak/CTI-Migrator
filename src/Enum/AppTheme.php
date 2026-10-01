@@ -15,8 +15,8 @@ namespace App\Enum;
  *     in and out, and no starfields;
  *   - "terminal": a terminal window typing a boot log on the sign-in page (boot-log controller), the screen clearing
  *     line by line on signing in and out, and no starfields;
- *   - "plain": a plain page with an illustration beside the sign-in form, a plain fade on signing in and out, and
- *     no starfields.
+ *   - "plain": the sign-in form on a plain white panel beside a colour field, a plain fade on signing in and out,
+ *     and no starfields.
  */
 enum AppTheme: string
 {

@@ -138,8 +138,11 @@ final class SettingsControllerTest extends AppTestCase
         $this->client->restart(); // signed out
         $this->client->request('GET', '/login');
         self::assertSelectorNotExists('html[data-page-loader-wait-for-value]', 'A still scene: nothing to wait for');
-        self::assertSelectorExists('.sign-in-art-wrap svg.sign-in-art[aria-hidden="true"]', 'An illustration on the right');
+        self::assertSelectorTextContains('aside.signin-showcase[aria-hidden="true"]', 'Example batch', 'A colour field on the right, its batch marked as an example');
         self::assertSelectorNotExists('.boot-log');
+        self::assertSelectorTextSame('main h1', 'Welcome back');
+        self::assertSelectorTextContains('.signin-help', 'Contact your user administrator, or open Lockout.');
+        self::assertSelectorTextSame('.signin-help a[href]', 'Lockout');
         self::assertSelectorCount(2, 'form[action="/login"] label > svg.field-icon');
         self::assertSelectorExists('label[data-controller="password-reveal"] button.field-reveal[aria-pressed="false"][aria-label="Show password"] ~ input[name="_password"][data-password-reveal-target="input"]');
         self::assertSelectorNotExists('canvas');

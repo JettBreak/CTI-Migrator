@@ -80,7 +80,7 @@
 <div class="page-loader solid">{% include '_loading.html.twig' with {active: true, label: 'Loading resources…'} %}</div>
 {{ include('_rocket_swipe.html.twig') }}
 {# The scene behind the page: the globe and solar system (space), a pixel city skyline in the app's timezone (city),
-   a terminal window typing a boot log (terminal), or an illustration on the right of a plain page (plain). #}
+   a terminal window typing a boot log (terminal), or a colour field beside a plain white panel (plain). #}
 {% if app_theme().scenery == 'space' %}
 <canvas data-controller="login-globe" data-login-globe-land-value="{{ asset('data/land-110m.json') }}" data-login-globe-sun-value="{{ asset('images/logo-256.png') }}"{% block globe_attributes %}{% endblock %} aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
 {% elseif app_theme().scenery == 'terminal' %}
@@ -89,7 +89,7 @@
     <pre class="boot-log-text" data-boot-log-target="output"></pre>
 </div>
 {% elseif app_theme().scenery == 'plain' %}
-<div class="sign-in-art-wrap">{{ include('_sign_in_art.html.twig') }}</div>
+{{ include('_sign_in_showcase.html.twig') }}
 {% elseif app_theme().scenery == 'city' %}
 <canvas data-controller="pixel-city" data-pixel-city-time-zone-value="{{ 'now'|date('e') }}" data-pixel-city-logo-value="{{ asset('images/logo-32.png') }}" aria-hidden="true" class="fixed inset-0 w-full h-full -z-10 pointer-events-none"></canvas>
 {% endif %}
