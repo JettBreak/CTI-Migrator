@@ -144,7 +144,7 @@ final class SettingsControllerTest extends AppTestCase
         self::assertSelectorTextContains('.signin-help', 'Contact your user administrator, or open Lockout.');
         self::assertSelectorTextSame('.signin-help a[href]', 'Lockout');
         self::assertSelectorCount(2, 'form[action="/login"] label > svg.field-icon');
-        self::assertSelectorExists('label[data-controller="password-reveal"] button.field-reveal[aria-pressed="false"][aria-label="Show password"] ~ input[name="_password"][data-password-reveal-target="input"]');
+        self::assertSelectorExists('label[data-controller="password-reveal"] input[name="_password"][data-password-reveal-target="input"] ~ button.field-reveal[tabindex="-1"][aria-pressed="false"][aria-label="Show password"]');
         self::assertSelectorNotExists('canvas');
         self::assertSelectorNotExists('template#rocket-swipe');
     }
