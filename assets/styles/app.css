@@ -370,6 +370,16 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
 .loader-option-head b{display:block}.loader-option-head small{display:block;margin-top:2px}
 .loader-option .loading-indicator{position:static;transform:none;box-shadow:none;background:var(--surface-2)}
 .loader-option .current{margin-left:auto}
+.settings-form .settings-next{margin-top:30px}
+/* A theme's preview: a small strip of its sign-in sky (templates/admin/settings.html.twig) */
+.theme-swatch{display:block;height:72px;border-radius:9px;border:1px solid var(--line)}
+.theme-swatch[data-app-theme=space]{background:
+    radial-gradient(circle at 18% 30%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 42% 70%,#cfe0ff 0 1px,transparent 1.5px),
+    radial-gradient(circle at 63% 22%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 86% 62%,#e4ecff 0 1px,transparent 1.5px),
+    radial-gradient(circle at 76% 52%,#1b3d78 0 14px,rgba(92,155,255,.35) 15px,transparent 24px),
+    radial-gradient(ellipse 50% 90% at 92% 10%,rgba(124,77,219,.5),transparent 70%),
+    radial-gradient(ellipse 45% 90% at 30% 100%,rgba(48,104,219,.45),transparent 70%),
+    radial-gradient(circle at 70% 50%,#0c1f45,#050b1c 80%)}
 /* Theme change (assets/controllers/theme_controller.js). With View Transitions the whole page is snapshotted
    and the new theme either crossfades in (a system change) or is revealed in a circle spreading from the
    clicked button (html.theme-reveal, centred on --theme-x/--theme-y, growing to --theme-r). Without them,

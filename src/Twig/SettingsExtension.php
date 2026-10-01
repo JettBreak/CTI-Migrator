@@ -2,15 +2,20 @@
 
 namespace App\Twig;
 
+use App\Enum\AppTheme;
 use App\Enum\LoadingAnimation;
 use App\Service\AppSettings;
 use Symfony\Contracts\Service\ResetInterface;
 use Twig\Attribute\AsTwigFunction;
 
-/** loading_animation(): the animation every loading indicator shows (templates/_loading.html.twig). */
+/**
+ * loading_animation(): the animation every loading indicator shows (templates/_loading.html.twig).
+ * app_theme(): the theme every page is drawn in (<html data-app-theme> in the layouts).
+ */
 final class SettingsExtension implements ResetInterface
 {
     private ?LoadingAnimation $animation = null; // read once per request: a page has several indicators
+    private ?AppTheme $theme = null;
 
     public function __construct(private readonly AppSettings $settings)
     {
@@ -22,8 +27,15 @@ final class SettingsExtension implements ResetInterface
         return $this->animation ??= $this->settings->loadingAnimation();
     }
 
+    #[AsTwigFunction('app_theme')]
+    public function theme(): AppTheme
+    {
+        return $this->theme ??= $this->settings->theme();
+    }
+
     public function reset(): void
     {
         $this->animation = null;
+        $this->theme = null;
     }
 }

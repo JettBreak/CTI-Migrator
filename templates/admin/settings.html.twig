@@ -14,7 +14,25 @@
 
 <section class="panel pad">
     {{ form_start(form, {attr: {autocomplete: 'off', class: 'settings-form'}}) }}
-        <span class="eyebrow">LOADING ANIMATION</span>
+        <span class="eyebrow">THEME</span>
+        <h2>Theme</h2>
+        <p class="muted" style="margin:6px 0 0">The look of every page, including the sign-in page. Each user still picks light or dark in the header.</p>
+        {{ form_errors(form.theme) }}
+        <div class="loader-options">
+            {% for choice in form.theme %}
+                {% set theme = themes|filter(t => t.value == choice.vars.value)|first %}
+                <label class="loader-option">
+                    <span class="loader-option-head">
+                        {{ form_widget(choice) }}
+                        <span><b>{{ theme.label }}</b><small class="muted">{{ theme.description }}</small></span>
+                        {% if theme == currentTheme %}<span class="tag success current">In use</span>{% endif %}
+                    </span>
+                    <span class="theme-swatch" data-app-theme="{{ theme.value }}" aria-hidden="true"></span>
+                </label>
+            {% endfor %}
+        </div>
+
+        <span class="eyebrow settings-next">LOADING ANIMATION</span>
         <h2>Loading animation</h2>
         <p class="muted" style="margin:6px 0 0">Shown while pages, tables and exports load.</p>
         {{ form_errors(form.loadingAnimation) }}

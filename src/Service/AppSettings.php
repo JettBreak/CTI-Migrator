@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Enum\AppTheme;
 use App\Enum\LoadingAnimation;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
@@ -29,6 +30,16 @@ final class AppSettings
     public function setLoadingAnimation(LoadingAnimation $animation): void
     {
         $this->write(['loading_animation' => $animation->value] + $this->read());
+    }
+
+    public function theme(): AppTheme
+    {
+        return AppTheme::tryFrom((string) ($this->read()['theme'] ?? '')) ?? AppTheme::Space;
+    }
+
+    public function setTheme(AppTheme $theme): void
+    {
+        $this->write(['theme' => $theme->value] + $this->read());
     }
 
     /** @return array<string, mixed> */

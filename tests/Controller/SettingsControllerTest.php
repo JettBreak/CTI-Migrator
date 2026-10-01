@@ -5,7 +5,7 @@ namespace App\Tests\Controller;
 use App\Entity\UserAuditEntry;
 use App\Tests\AppTestCase;
 
-/** Administration > Settings: the loading animation, set for everyone (App\Controller\SettingsController). */
+/** Administration > Settings: the theme and the loading animation, set for everyone (App\Controller\SettingsController). */
 final class SettingsControllerTest extends AppTestCase
 {
     public function testAnAdministratorSetsTheLoadingAnimationForEveryone(): void
@@ -39,14 +39,29 @@ final class SettingsControllerTest extends AppTestCase
         self::assertSelectorNotExists('.loading-indicator svg.rocket');
     }
 
-    public function testSavingTheAnimationInUseChangesNothing(): void
+    public function testTheThemeIsOnEveryPageIncludingTheSignInPage(): void
+    {
+        $this->client->request('GET', '/login');
+        self::assertSelectorExists('html[data-app-theme="space"]', 'Space is the default');
+
+        $this->loginAs('officer');
+        $this->client->request('GET', '/cards');
+        self::assertSelectorExists('html[data-app-theme="space"]');
+
+        $this->loginAs('admin');
+        $this->client->request('GET', '/admin/settings');
+        self::assertSelectorExists('input[name="app_settings[theme]"][value="space"][checked]');
+        self::assertSelectorExists('.loader-option .theme-swatch[data-app-theme="space"]', 'Each theme has a preview');
+    }
+
+    public function testSavingTheSettingsInUseChangesNothing(): void
     {
         $this->loginAs('admin');
         $this->client->request('GET', '/admin/settings');
-        $this->client->submitForm('Save', ['app_settings[loadingAnimation]' => 'rocket']);
+        $this->client->submitForm('Save', ['app_settings[theme]' => 'space', 'app_settings[loadingAnimation]' => 'rocket']);
         $this->client->followRedirect();
 
-        self::assertSelectorTextContains('.flash.success', 'already the rocket');
+        self::assertSelectorTextContains('.flash.success', 'Nothing changed');
         self::assertNull($this->em()->getRepository(UserAuditEntry::class)->findOneBy(['action' => UserAuditEntry::SETTING_CHANGED]));
     }
 
