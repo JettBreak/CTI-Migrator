@@ -2,7 +2,7 @@
     Loading indicator, in the animation set for everyone in Administration > Settings (loading_animation()):
     a pixel rocket cruising through streaking stars and lifting over an asteroid, or a pixel dinosaur
     running over the ground and jumping a cactus, a console-style NOW LOADING over a block bar filling up, or a
-    command-line spinner over a [#####.....] bar counting up to 100%.
+    command-line spinner over a [#####.....] bar counting up to 100%, or a plain turning ring.
     By default it is an overlay card, hidden until its parent gets the "is-loading" class
     (see assets/controllers/loading_controller.js).
     Params:
@@ -15,7 +15,9 @@
 {% set animation = animation|default(loading_animation()) %}
 <div class="loading-indicator{{ compact|default(false) ? ' compact' }}{{ active|default(false) ? ' is-active' }}" role="status" aria-live="polite" data-animation="{{ animation.value }}">
     <div class="loading-stage" aria-hidden="true">
-        {% if animation.value == 'terminal' %}
+        {% if animation.value == 'spinner' %}
+        <div class="spin-ring"></div>
+        {% elseif animation.value == 'terminal' %}
         <div class="term-cmd"><span class="term-prompt">$</span> fetch --wait <span class="term-spin"></span></div>
         <div class="term-progress">[<span class="term-bar"><span class="term-todo">....................</span><span class="term-done">####################</span></span>] <span class="term-pct"></span></div>
         {% elseif animation.value == 'now-loading' %}

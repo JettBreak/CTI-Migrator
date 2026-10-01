@@ -14,13 +14,16 @@ namespace App\Enum;
  *   - "city": a pixel city skyline on the sign-in page (pixel-city controller), a pixel block dissolve on signing
  *     in and out, and no starfields;
  *   - "terminal": a terminal window typing a boot log on the sign-in page (boot-log controller), the screen clearing
- *     line by line on signing in and out, and no starfields.
+ *     line by line on signing in and out, and no starfields;
+ *   - "plain": a plain page with an illustration beside the sign-in form, a plain fade on signing in and out, and
+ *     no starfields.
  */
 enum AppTheme: string
 {
     case Space = 'space';
     case EightBit = '8bit';
     case Developer = 'developer';
+    case Corporate = 'corporate';
 
     public function label(): string
     {
@@ -28,6 +31,7 @@ enum AppTheme: string
             self::Space => 'Space',
             self::EightBit => '8-bit console',
             self::Developer => 'Developer console',
+            self::Corporate => 'Corporate',
         };
     }
 
@@ -37,6 +41,7 @@ enum AppTheme: string
             self::Space => 'Deep blue night sky with stars, a turning globe and the solar system on the sign-in page.',
             self::EightBit => 'Classic console look for the office: bold primaries, black outlines and pixel fonts, with a pixel city skyline on the sign-in page.',
             self::Developer => 'A terminal and code editor look: monospace type, syntax-highlight colours and thin panes, with a boot log typing on the sign-in page.',
+            self::Corporate => 'A classic banking portal: navy sidebar, clean white pages and one strong blue for actions, with a plain, quiet sign-in page.',
         };
     }
 
@@ -46,6 +51,7 @@ enum AppTheme: string
             self::Space => null,
             self::EightBit => 'styles/theme-8bit.css',
             self::Developer => 'styles/theme-developer.css',
+            self::Corporate => 'styles/theme-corporate.css',
         };
     }
 
@@ -56,6 +62,7 @@ enum AppTheme: string
             self::Space => null,
             self::EightBit => 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap',
             self::Developer => 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap',
+            self::Corporate => 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
         };
     }
 
@@ -65,29 +72,35 @@ enum AppTheme: string
             self::Space => 'space',
             self::EightBit => 'city',
             self::Developer => 'terminal',
+            self::Corporate => 'plain',
         };
     }
 
     /**
      * The Stimulus controller that draws the scenery behind the signed-out pages; the page loader waits for its
-     * "<controller>:ready" event.
+     * "<controller>:ready" event. Null for a still scene, with nothing to wait for.
      */
-    public function sceneController(): string
+    public function sceneController(): ?string
     {
         return match ($this->scenery()) {
             'space' => 'login-globe',
             'city' => 'pixel-city',
             'terminal' => 'boot-log',
+            'plain' => null,
         };
     }
 
-    /** How the loading overlay goes away right after signing in or out (assets/rocket_swipe.js). */
+    /**
+     * How the loading overlay goes away right after signing in or out (assets/rocket_swipe.js); "fade" is the
+     * overlay's own fade-out, with nothing more.
+     */
     public function transition(): string
     {
         return match ($this->scenery()) {
             'space' => 'rocket',
             'city' => 'blocks',
             'terminal' => 'lines',
+            'plain' => 'fade',
         };
     }
 
@@ -104,6 +117,7 @@ enum AppTheme: string
             self::Space => LoadingAnimation::Rocket,
             self::EightBit => LoadingAnimation::NowLoading,
             self::Developer => LoadingAnimation::Terminal,
+            self::Corporate => LoadingAnimation::Spinner,
         };
     }
 }

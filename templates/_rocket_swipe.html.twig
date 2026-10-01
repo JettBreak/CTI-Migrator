@@ -1,6 +1,7 @@
 {# The rocket swipe that ends the loading overlay right after signing in or out (assets/rocket_swipe.js):
    the pixel rocket, its glowing trail and its sparks, cloned when it plays. In both layouts. A theme without space
-   scenery has its own transition instead (AppTheme::transition()), built by the script: data-style="blocks" or "lines". #}
+   scenery has its own transition instead (AppTheme::transition()), built by the script: data-style="blocks" or "lines";
+   with "fade" there is no template, and the overlay just fades out. #}
 {% if app_theme().transition == 'rocket' %}
 <template id="rocket-swipe">
     <div class="rocket-swipe" aria-hidden="true">
@@ -8,6 +9,6 @@
         <div class="rocket-swipe-front"><div class="rocket-swipe-seam"></div><div class="rocket-swipe-craft">{{ include('_pixel_rocket.html.twig') }}</div></div>
     </div>
 </template>
-{% else %}
+{% elseif app_theme().transition != 'fade' %}
 <template id="rocket-swipe" data-style="{{ app_theme().transition }}"></template>
 {% endif %}

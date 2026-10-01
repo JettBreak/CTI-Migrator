@@ -12,6 +12,7 @@ enum LoadingAnimation: string
     case Dinosaur = 'dinosaur';
     case NowLoading = 'now-loading';
     case Terminal = 'terminal';
+    case Spinner = 'spinner';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum LoadingAnimation: string
             self::Dinosaur => 'Dinosaur',
             self::NowLoading => 'Now loading',
             self::Terminal => 'Terminal',
+            self::Spinner => 'Spinner',
         };
     }
 
@@ -30,6 +32,7 @@ enum LoadingAnimation: string
             self::Dinosaur => 'A pixel dinosaur running over the ground, jumping a cactus.',
             self::NowLoading => 'A blinking NOW LOADING over a block bar filling up, like an old game console.',
             self::Terminal => 'A command-line spinner and a [#####.....] progress bar counting up to 100%.',
+            self::Spinner => 'A plain turning ring: quiet and businesslike.',
         };
     }
 }

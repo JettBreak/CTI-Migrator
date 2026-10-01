@@ -43,6 +43,7 @@ final class SettingsControllerTest extends AppTestCase
     {
         $this->client->request('GET', '/login');
         self::assertSelectorExists('html[data-app-theme="space"]', 'Space is the default');
+        self::assertSelectorNotExists('.field-icon, .field-reveal', 'Field icons and the password toggle are the corporate theme\'s');
 
         $this->loginAs('officer');
         $this->client->request('GET', '/cards');
@@ -115,6 +116,34 @@ final class SettingsControllerTest extends AppTestCase
         self::assertSelectorExists('.boot-log[data-controller="boot-log"][data-boot-log-time-zone-value] pre[data-boot-log-target="output"]');
         self::assertSelectorNotExists('canvas');
         self::assertSelectorExists('template#rocket-swipe[data-style="lines"]');
+    }
+
+    public function testTheCorporateThemeHasAPlainSignInPageAndAPlainFade(): void
+    {
+        $this->loginAs('admin');
+        $this->client->request('GET', '/admin/settings');
+        self::assertSelectorExists('.loader-option .theme-swatch[data-app-theme="corporate"]');
+        $this->client->submitForm('Save', ['app_settings[theme]' => 'corporate', 'app_settings[loadingAnimation]' => 'rocket']);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash.success', 'Everyone now sees the Corporate theme');
+        self::assertSelectorExists('html[data-app-theme="corporate"] link[href*="theme-corporate"]');
+        self::assertSelectorExists('link[href*="family=Inter"]');
+
+        $this->loginAs('officer');
+        $this->client->request('GET', '/cards');
+        self::assertSelectorExists('.directory-panel > .loading-indicator[data-animation="spinner"] .spin-ring', 'The spinner in place of the rocket');
+        self::assertSelectorNotExists('canvas[data-controller="starfield"]');
+        self::assertSelectorNotExists('template#rocket-swipe', 'Signing out just fades the overlay');
+
+        $this->client->restart(); // signed out
+        $this->client->request('GET', '/login');
+        self::assertSelectorNotExists('html[data-page-loader-wait-for-value]', 'A still scene: nothing to wait for');
+        self::assertSelectorExists('.sign-in-art-wrap svg.sign-in-art[aria-hidden="true"]', 'An illustration on the right');
+        self::assertSelectorNotExists('.boot-log');
+        self::assertSelectorCount(2, 'form[action="/login"] label > svg.field-icon');
+        self::assertSelectorExists('label[data-controller="password-reveal"] button.field-reveal[aria-pressed="false"][aria-label="Show password"] ~ input[name="_password"][data-password-reveal-target="input"]');
+        self::assertSelectorNotExists('canvas');
+        self::assertSelectorNotExists('template#rocket-swipe');
     }
 
     public function testSavingTheSettingsInUseChangesNothing(): void

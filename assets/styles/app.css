@@ -137,6 +137,10 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 @keyframes term-fill{0%{width:0;animation-timing-function:steps(20,end)}83%,100%{width:100%}}
 @keyframes term-count{0%{--term-pct:0;animation-timing-function:steps(20,end)}83%,100%{--term-pct:100}}
 @media(prefers-reduced-motion:reduce){.term-spin::before,.term-done,.term-pct{animation:none}.term-done{width:60%}.term-pct{--term-pct:60}}
+/* Spinner, the plain loading animation: a ring with one coloured quarter, turning */
+.spin-ring{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:3px solid var(--track);border-top-color:var(--blue);animation:spin-ring .8s linear infinite}
+@keyframes spin-ring{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin-ring{animation-duration:2.4s}}
 /* Compact variant, always running: e.g. an export being prepared in the Exports table */
 .loading-indicator.compact{position:static;transform:none;flex-direction:row;gap:8px;padding:0;background:none;border:0;box-shadow:none;z-index:auto}
 .loading-indicator.compact .loading-stage{zoom:.5}
@@ -419,6 +423,13 @@ main>header+.lock-banner,main>header+.flash{margin-top:20px}
     linear-gradient(#56b6c2,#56b6c2) 16px 46px/54px 6px no-repeat,linear-gradient(#98c379,#98c379) 76px 46px/44px 6px no-repeat,
     linear-gradient(#61afef,#61afef) 126px 46px/7px 12px no-repeat,
     #1e1f24}
+.theme-swatch[data-app-theme=corporate]{border-radius:8px;border-color:#e3e8ef;background:
+    linear-gradient(#0b2545,#0b2545) 0 0/44px 100% no-repeat,
+    linear-gradient(#f59a23,#f59a23) 0 22px/3px 10px no-repeat,
+    linear-gradient(#ffffff40,#ffffff40) 10px 24px/24px 5px no-repeat,linear-gradient(#ffffff26,#ffffff26) 10px 38px/20px 5px no-repeat,
+    linear-gradient(#fff,#fff) 56px 14px/48px 28px no-repeat,linear-gradient(#fff,#fff) 112px 14px/48px 28px no-repeat,
+    linear-gradient(#1f5fbf,#1f5fbf) 56px 50px/44px 10px no-repeat,
+    #f4f6fa}
 /* Theme change (assets/controllers/theme_controller.js). With View Transitions the whole page is snapshotted
    and the new theme either crossfades in (a system change) or is revealed in a circle spreading from the
    clicked button (html.theme-reveal, centred on --theme-x/--theme-y, growing to --theme-r). Without them,
