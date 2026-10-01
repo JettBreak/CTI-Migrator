@@ -41,6 +41,9 @@ final class SecurityControllerTest extends AppTestCase
         self::assertSelectorExists('html[data-page-loader-arrival-value="sign-in"]');
         self::assertSelectorExists('form[action="/login"][data-controller~="rocket-swipe"][data-action~="rocket-swipe#depart"][data-rocket-swipe-to-param="app"]');
         self::assertSelectorExists('template#rocket-swipe .rocket-swipe-front .rocket-swipe-craft svg.rocket');
+        // The credentials are checked before anything loads: no loading overlay on submit, only a busy button.
+        self::assertSelectorNotExists('form[action="/login"][data-action~="page-loader#show"]');
+        self::assertSelectorExists('form[action="/login"][data-controller~="submit-busy"][data-action~="submit-busy#start"][data-submit-busy-label-value="Signing in…"] button[type="submit"][data-submit-busy-target="button"]');
 
         // Signing out shows the loader at once and asks the sign-in page for the swipe; the link itself still signs out.
         $this->loginAs('officer');

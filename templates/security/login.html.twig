@@ -60,7 +60,7 @@
         <div class="console-kicker" aria-hidden="true">&gt; CORE ACCOUNT MIGRATION <span>// CONSOLE</span></div>
         <h1 class="text-4xl sm:text-5xl mb-4" style="color:#fff;line-height:1.1">Sign in to<br>data migration</h1>
         {% endif %}
-        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation rocket-swipe" data-action="field-validation#validate page-loader#show rocket-swipe#depart" data-rocket-swipe-to-param="app">
+        <form autocomplete="off" method="post" action="{{ path('app_login') }}" class="w-full max-w-sm space-y-4" data-turbo="false" data-controller="field-validation rocket-swipe submit-busy" data-action="field-validation#validate submit-busy#start rocket-swipe#depart" data-rocket-swipe-to-param="app" data-submit-busy-label-value="Signing in…">
             <div class="text-sm" style="color:#87a4d4">{{ corporate ? 'Sign in with your operations account.' : 'Use your operations account.' }}</div>
             {% if error %}
                 <p class="text-sm rounded-md px-3 py-2" role="alert" style="background:var(--red-bg);color:var(--red)">{{ error }}</p>
@@ -82,7 +82,9 @@
                 {% endif %}
             </label>
             <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
-            <button type="submit" class="button primary w-full h-12" style="margin:8px 0 0">Sign in</button>
+            {# The credentials are checked first: the button says "Signing in…" meanwhile, and the loading overlay shows
+               only on the page the sign-in leads to (base.html.twig), never for a sign-in that fails. #}
+            <button type="submit" class="button primary w-full h-12" style="margin:8px 0 0" data-submit-busy-target="button">Sign in</button>
             {% if corporate %}
             <p class="signin-help">Forgot your password or locked out? Contact your user administrator, or open <a href="{{ path('app_system_lock') }}" data-turbo="false">Lockout</a>.</p>
             {% if status.scheduled %}<p class="lock-countdown">Access ends on {{ status.locksAt|date('M j, Y') }} · {{ status.daysLeft }} day{{ status.daysLeft == 1 ? '' : 's' }} left</p>{% endif %}

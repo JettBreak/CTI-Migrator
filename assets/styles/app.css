@@ -141,6 +141,10 @@ body:has(.directory-panel) .page-head{flex:0 0 auto}
 .spin-ring{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:3px solid var(--track);border-top-color:var(--blue);animation:spin-ring .8s linear infinite}
 @keyframes spin-ring{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.spin-ring{animation-duration:2.4s}}
+/* A submit button waiting for the server (assets/controllers/submit_busy_controller.js): a small ring before its label */
+.button.is-busy{cursor:progress;opacity:.9}
+.button.is-busy::before{content:'';width:14px;height:14px;flex:none;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin-ring .7s linear infinite}
+@media(prefers-reduced-motion:reduce){.button.is-busy::before{animation-duration:2s}}
 /* Compact variant, always running: e.g. an export being prepared in the Exports table */
 .loading-indicator.compact{position:static;transform:none;flex-direction:row;gap:8px;padding:0;background:none;border:0;box-shadow:none;z-index:auto}
 .loading-indicator.compact .loading-stage{zoom:.5}
