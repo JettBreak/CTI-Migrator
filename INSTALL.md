@@ -518,6 +518,11 @@ code.
 
 ## Development setup
 
+**Quick path:** `php bin/setup.php --check` (in a terminal) does the steps below in one go: packages, the app
+database and its user on a local MySQL, `app:database:init` (with `--skip-core-check` while the core copies
+are missing), two administrators on a new app database, and the tests. Options: `--root-password=…`,
+`--no-admins`, `--no-console` (stop before the commands that need the super user). By hand:
+
 ```bash
 composer install
 docker compose up -d database

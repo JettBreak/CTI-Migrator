@@ -127,11 +127,18 @@ so workers left running keep using the old version.
 
 ## Local development
 
+After `git clone`, with PHP 8.4+, Composer and a local MySQL 8.4 running, one command sets everything up
+(in a terminal: the console steps ask for the Coreware super user, and define it the first time):
+
 ```bash
-composer install
-php bin/console doctrine:migrations:migrate
-symfony serve -d
+php bin/setup.php --check
 ```
+
+It installs the packages, creates the app database (`APP_DATABASE_URL`) and its user (asking MySQL root only
+on a local server, `--root-password=…`), runs `app:database:init`, creates two administrators on a new app
+database (temporary passwords printed once) and runs the tests. It never creates or changes core data: load
+copies of `coreapp_fusion` and `CoreSecurity` yourself (never the live databases); until then it skips the
+core check. Safe to run again. Then `symfony serve -d`. The manual steps are in [INSTALL.md](INSTALL.md#development-setup).
 
 The project `php.ini` raises the upload limits for `symfony serve`. Run the tests with
 `php bin/phpunit`; they use SQLite and an in-memory stand-in for core, so they never touch a real database.
