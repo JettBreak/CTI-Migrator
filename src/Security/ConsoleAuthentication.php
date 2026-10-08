@@ -39,6 +39,7 @@ final class ConsoleAuthentication
         private readonly UserAudit $audit,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly ConsoleCommandAuthorization $authorization,
     ) {
     }
 
@@ -47,6 +48,10 @@ final class ConsoleAuthentication
     {
         $name = $event->getCommand()?->getName();
         if (null === $name || \in_array($name, self::UNATTENDED, true)) {
+            return;
+        }
+
+        if ($this->authorization->permitsInternalCommand()) {
             return;
         }
 

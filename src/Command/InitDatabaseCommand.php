@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Security\ConsoleCommandAuthorization;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -23,6 +24,7 @@ final class InitDatabaseCommand
         private readonly Connection $appConnection,
         private readonly Connection $coreappConnection,
         private readonly Connection $coreSecurityConnection,
+        private readonly ConsoleCommandAuthorization $authorization,
     ) {
     }
 
@@ -46,17 +48,23 @@ final class InitDatabaseCommand
         $application = $command->getApplication();
         $steps = [
             'Creating database if missing' => ['command' => 'doctrine:database:create', '--connection' => 'app', '--if-not-exists' => true],
+            'Synchronizing migration metadata' => ['command' => 'doctrine:migrations:sync-metadata-storage'],
             'Running migrations' => ['command' => 'doctrine:migrations:migrate', '--no-interaction' => true, '--allow-no-migration' => true],
         ];
-        foreach ($steps as $label => $arguments) {
-            $io->section($label);
-            $input = new ArrayInput($arguments);
-            $input->setInteractive(false);
-            if (Command::SUCCESS !== $application->doRun($input, $io)) {
-                $io->error($label.' failed.');
+        $this->authorization->beginInternalCommands();
+        try {
+            foreach ($steps as $label => $arguments) {
+                $io->section($label);
+                $input = new ArrayInput($arguments);
+                $input->setInteractive(false);
+                if (Command::SUCCESS !== $application->doRun($input, $io)) {
+                    $io->error($label.' failed.');
 
-                return Command::FAILURE;
+                    return Command::FAILURE;
+                }
             }
+        } finally {
+            $this->authorization->endInternalCommands();
         }
 
         if (!$skipCoreCheck) {

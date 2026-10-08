@@ -55,6 +55,24 @@ final class ConsoleAuthenticationTest extends AppTestCase
         self::assertStringNotContainsString('Coreware authentication', $tester->getErrorOutput());
     }
 
+    public function testDatabaseInitializationDoesNotRepromptForItsAuthenticatedInternalCommands(): void
+    {
+        $application = new Application(static::$kernel);
+        $application->setAutoExit(false);
+        $tester = new ApplicationTester($application);
+        $tester->setInputs(['superuser', self::SUPERUSER_PASSWORD]);
+        $tester->run([
+            'command' => 'app:database:init',
+            '--skip-core-check' => true,
+        ], ['capture_stderr_separately' => true]);
+
+        // SQLite (the test app database) cannot execute doctrine:database:create, but the
+        // command has reached it without the child being rejected for missing authentication.
+        self::assertSame(1, $tester->getStatusCode());
+        self::assertStringNotContainsString('"doctrine:database:create" needs Coreware authentication', $tester->getErrorOutput());
+        self::assertStringContainsString('getListDatabasesSQL', $tester->getErrorOutput());
+    }
+
     public function testFirstUseDefinesTheSuperUserInEnvLocal(): void
     {
         $dir = sys_get_temp_dir().'/superuser-setup-'.bin2hex(random_bytes(4));

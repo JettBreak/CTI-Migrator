@@ -3,6 +3,7 @@
 namespace App\Tests\Command;
 
 use App\Command\InitDatabaseCommand;
+use App\Security\ConsoleCommandAuthorization;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -30,5 +31,16 @@ final class InitDatabaseCommandTest extends KernelTestCase
 
         InitDatabaseCommand::assertSeparateFromCore(['host' => '10.22.70.88', 'port' => 3306, 'dbname' => 'data_migration'], [$core]);
         $this->addToAssertionCount(1);
+    }
+
+    public function testInternalAuthorizationOnlyLastsForTheParentCommandScope(): void
+    {
+        $authorization = new ConsoleCommandAuthorization();
+
+        self::assertFalse($authorization->permitsInternalCommand());
+        $authorization->beginInternalCommands();
+        self::assertTrue($authorization->permitsInternalCommand());
+        $authorization->endInternalCommands();
+        self::assertFalse($authorization->permitsInternalCommand());
     }
 }
