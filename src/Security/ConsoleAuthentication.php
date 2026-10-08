@@ -39,7 +39,9 @@ final class ConsoleAuthentication
         private readonly UserAudit $audit,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
-        private readonly ConsoleCommandAuthorization $authorization,
+        // Optional for one boot so a deployment with a stale compiled container can run
+        // cache:clear and rebuild with the new authorization service.
+        private readonly ?ConsoleCommandAuthorization $authorization = null,
     ) {
     }
 
@@ -51,7 +53,7 @@ final class ConsoleAuthentication
             return;
         }
 
-        if ($this->authorization->permitsInternalCommand()) {
+        if ($this->authorization?->permitsInternalCommand()) {
             return;
         }
 
