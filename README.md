@@ -23,7 +23,7 @@ provided on every new server:
 
 ### Requirements
 
-- PHP **8.4 or later** with `pdo_mysql`, `ctype` and `iconv` (plus the PHP CLI, used by the background worker).
+- PHP **8.4 or later** with the PDO MySQL driver (`pdo` and `pdo_mysql`), `ctype` and `iconv` (plus the PHP CLI, used by the background worker). Verify the CLI driver with `php -r "print_r(PDO::getAvailableDrivers());"`.
 - Composer.
 - MySQL 8.4 access to the core database and to an app database.
 - Internet access during installation (see [Servers without internet](#servers-without-internet)).

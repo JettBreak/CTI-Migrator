@@ -23,7 +23,7 @@ declare(strict_types=1);
  * while the app database has none. Never point a development installation at the live core.
  */
 
-const EXTENSIONS = ['pdo_mysql', 'ctype', 'iconv'];
+const EXTENSIONS = ['pdo', 'pdo_mysql', 'ctype', 'iconv'];
 /** Recommended, not required (INSTALL.md "Requirements"). */
 const RECOMMENDED = ['intl', 'mbstring'];
 const MYSQL_DOWN = 2002;
@@ -53,6 +53,9 @@ foreach (RECOMMENDED as $extension) {
     if (!extension_loaded($extension)) {
         echo "Note: PHP extension $extension is recommended but not enabled.\n";
     }
+}
+if (!in_array('mysql', \PDO::getAvailableDrivers(), true)) {
+    fail('The PDO MySQL driver is unavailable to '.\PHP_BINARY.'. Enable pdo_mysql for the CLI PHP binary (not only PHP-FPM/Apache), then verify with: '.\PHP_BINARY." -r \"print_r(PDO::getAvailableDrivers());\"");
 }
 if (!quiet('composer --version')) {
     fail('Composer 2 is not on the PATH: https://getcomposer.org/download/');

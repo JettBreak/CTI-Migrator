@@ -24,7 +24,7 @@ in core banking, with maker-checker approval. It consists of:
 
 | | |
 |---|---|
-| PHP | 8.4 or later (CLI and web), with `pdo_mysql`, `ctype` and `iconv`. `opcache`, `intl` and `mbstring` are recommended. |
+| PHP | 8.4 or later (CLI and web), with the PDO MySQL driver (`pdo` and `pdo_mysql`), `ctype` and `iconv`. Verify the CLI driver with `php -r "print_r(PDO::getAvailableDrivers());"`. `opcache`, `intl` and `mbstring` are recommended. |
 | Composer | 2.x |
 | MySQL | The same major version as the core server (8.4). The app database may live on the core server or on its own server. |
 | Web server | Any server that can run PHP through a front controller (nginx or Apache with PHP-FPM, IIS with FastCGI). **HTTPS is required** in production: the session cookie is marked secure and HSTS is sent. |
