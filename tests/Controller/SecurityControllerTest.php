@@ -30,8 +30,18 @@ final class SecurityControllerTest extends AppTestCase
         self::assertSelectorTextContains('.console-kicker', 'CORE ACCOUNT MIGRATION');
         self::assertSelectorExists('.console-clock[data-controller="clock"][data-clock-time-zone-value="Asia/Manila"]');
         self::assertSelectorTextContains('.console-clock', 'MANILA (UTC+8)');
-        // The globe's marker is where the timezone is (Manila), from the timezone database.
-        self::assertSelectorExists('canvas[data-login-globe-hud-value="true"][data-login-globe-marker-value="[120.97,14.59]"][data-login-globe-marker-label-value="MANILA"]');
+        // The timezone database supplies the coordinates. Its precise Manila value can differ
+        // slightly between PHP/tzdata releases, so assert the marker's city and map position
+        // rather than coupling this functional test to a particular database revision.
+        $marker = $this->client->getCrawler()
+            ->filter('canvas[data-login-globe-hud-value="true"][data-login-globe-marker-label-value="MANILA"]')
+            ->attr('data-login-globe-marker-value');
+        self::assertIsString($marker);
+        $coordinates = json_decode($marker, true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($coordinates);
+        self::assertCount(2, $coordinates);
+        self::assertEqualsWithDelta(120.97, $coordinates[0], 0.02);
+        self::assertEqualsWithDelta(14.59, $coordinates[1], 0.02);
     }
 
     public function testSigningInAndOutEndTheNextPagesLoaderWithTheRocketSwipe(): void

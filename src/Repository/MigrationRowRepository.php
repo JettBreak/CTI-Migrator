@@ -209,15 +209,26 @@ class MigrationRowRepository extends ServiceEntityRepository
     /**
      * @param list<string> $accounts
      *
-     * @return list<MigrationRow> in file order
+     * @return list<MigrationRow> in the supplied account order, then file order for rows of one account
      */
     public function pendingRowsFor(MigrationBatch $batch, array $accounts): array
     {
-        return $this->createQueryBuilder('r')
+        $rows = $this->createQueryBuilder('r')
             ->where('r.batch = :batch AND r.appliedAt IS NULL AND r.currentAccount IN (:accounts)')
             ->setParameter('batch', $batch)->setParameter('accounts', $accounts)
             ->orderBy('r.lineNumber')
             ->getQuery()->getResult();
+
+        // The SQL IN predicate does not preserve $accounts' order. Keeping this aligned with
+        // nextPendingAccounts() makes each chunk deterministic across SQLite and MySQL, while
+        // retaining a mapping file's line order for duplicate card rows of the same account.
+        $accountOrder = array_flip($accounts);
+        usort($rows, static fn (MigrationRow $left, MigrationRow $right): int =>
+            [$accountOrder[$left->getCurrentAccount()], $left->getLineNumber()]
+            <=> [$accountOrder[$right->getCurrentAccount()], $right->getLineNumber()],
+        );
+
+        return $rows;
     }
 
     /**
